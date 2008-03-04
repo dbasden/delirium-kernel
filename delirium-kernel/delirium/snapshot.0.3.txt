@@ -1,0 +1,21 @@
+Delirium v0.3 % Still not king.
+Multiboot information:
+flags = 0x7e7
+mem_lower = 639KB, mem_upper = 3072KB
+boot_device = 0xffffff
+cmdline = /kern-i386
+elf_sec: num = 16, size = 0x28, addr = 0x108000, shndx = 0xd
+mmap_addr = 0x544a4, mmap_length = 0x30
+ size = 0x14, base_addr = 0x00, length = 0x09fc00, type = 0x1
+ size = 0x14, base_addr = 0x0100000, length = 0x0300000, type = 0x1
+Configuring:  memory interrupts. Done.
+Malloc 16k at 0x(err)
+Malloc 32k at 0x(err)
+Testing printf
+0123456789ABCDEF     %d, 42 = 42
+%u, 42 = 42      %03u, 42 = 042
+%x, 42 = 2a       %c, 42 = *
+%b, 42 = 101010
+Testing stdarg
+Testing interrupt handler
+Tests over :-) Spinning forever

@@ -1,0 +1,10 @@
+#! /bin/bash
+qemu -s -fda floppy.386 -m 32 $@ &
+echo Hit [ENTER] to break in with gdb
+read
+TEXT=`ps ax | grep floppy.386 | grep -v grep`
+if [ -z "${TEXT}" ]; then
+ exit
+fi
+gdb -q ./kern-i386 :1234 
+killall -HUP qemu

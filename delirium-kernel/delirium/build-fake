@@ -1,0 +1,4 @@
+#! /bin/sh
+
+export ARCH=fake 
+make clean && make

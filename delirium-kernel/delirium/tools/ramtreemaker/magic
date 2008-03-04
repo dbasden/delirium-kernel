@@ -1,0 +1,17 @@
+# Magic local data for file(1) command.
+# Insert here your local magic data. Format is described in magic(5).
+
+0       lelong          0xfeedbabe      DeLiRIuM ramtree image
+>8      lelong          x		\b: %d entries
+>4	lelong		x		\b, %d bytes total
+>>8	lelong		>0		
+>>>(20)	string		x		[%s]
+>>8	lelong		>1		
+>>>(32)	string		x		[%s]
+>>8	lelong		>2
+>>>(44)	string		x		[%s]
+>>8	lelong		>3		
+>>>(56)	string		x		[%s]
+>>8	lelong		>4		
+>>>(68)	string		x		[%s]
+>>8	lelong		>5		\b...

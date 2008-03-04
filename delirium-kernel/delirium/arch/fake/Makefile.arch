@@ -1,0 +1,2 @@
+ARCHOBJS=arch/fake/boot.o arch/fake/cpu.o
+ARCHLIB=arch/fake/fake.a

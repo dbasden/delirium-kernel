@@ -1,0 +1,87 @@
+#
+# Base definitions for all make files in delirium
+#
+# The makefiles themselves should -only- have module specific information
+# in them, otherwise stuff doesn't build cleanly against each other. 
+#
+# If you need to append CFLAGS, just use CFLAGS+= rather than overriding it.
+
+
+# Kernel load point in the ELF header, and also entry point
+#
+KERNSTART=0x100000
+
+# Compile in assertions
+#
+ENABLE_ASSERTS=1
+
+# Compile in run-time debugging listener
+#
+ENABLE_DEBUG_THREAD=1
+
+# Switch on paging if the arch supports it
+#
+# Obsolete: Most of delirium no longer works without paging hackery
+#
+ENABLE_PAGING=1
+
+# Don't use HLTs in kpanic
+#
+#ENABLE_BOCHS_HACK=1
+
+# Use the internal GDB stub on the first serial port
+# 
+#ENABLE_GDB_STUB=1
+
+# If using a cross compilter. This isn't really needed for the
+# kernel itself, but later on will help with userspace apps.
+# Leave blank for now
+#
+# CROSSPREFIX=i686-shikita-delirium-
+CROSSPREFIX=
+CC=$(CROSSPREFIX)gcc
+LD=$(CROSSPREFIX)ld
+AS=$(CROSSPREFIX)gas
+NM=$(CROSSPREFIX)nm
+STRIP=$(CROSSPREFIX)strip
+CFLAGS=-Wall -ffreestanding -Wsystem-headers -mpush-args -nostdlib -g
+BASEDIR=.
+INCLUDES=-nostdinc -isystem${BASEDIR}/include/
+DEFAULTARCH=i386
+
+#--------------------------------------------------------------------
+
+#
+# Make sure ARCH is set
+#
+ifndef ARCH
+	ARCH=${DEFAULTARCH}
+endif
+
+#
+# Complete CFLAGS and ASFLAGS
+#
+
+ifdef ENABLE_ASSERTS
+	CFLAGS+= -DENABLE_ASSERTS
+endif
+
+ifdef ENABLE_PAGING
+	CFLAGS+= -DENABLE_PAGING
+endif
+
+ifdef ENABLE_DEBUG_THREAD
+	CFLAGS+= -DENABLE_DEBUG_THREAD
+endif
+
+
+ifdef ENABLE_BOCHS_HACK
+	CFLAGS+= -DENABLE_BOCHS_HACK
+endif
+
+ifdef ENABLE_GDB_STUB
+	CFLAGS+= -DENABLE_GDB_STUB
+endif
+
+CFLAGS+= -DKERNEL -DARCH_${ARCH} ${INCLUDES}
+ASFLAGS=$(CFLAGS)
