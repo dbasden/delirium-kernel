@@ -1,0 +1,25 @@
+                                                                               -
+
+
+
+
+DeLiRiUM v0.4 % Still not king.
+Multiboot information:
+| flags = 00000000000000000000011111100111
+| mem_lower = 639KB, mem_upper = 3072KB
+| boot_device = 0xffffff
+| cmdline = /kern-i386
+| elf_sec: num = 16, size = 0x00000028, addr = 0x0010c000, shndx = 0x0000000d
+| mmap_addr = 0x000544a4, mmap_length = 0x00000030
+| size = 0x00000014, base_addr = 0x000000000, length = 0x00009fc00, type = 1
+| size = 0x00000014, base_addr = 0x000100000, length = 0x000300000, type = 1
+Configuring mmu, interrupts, frameherd(+639k)(+3072k)(-44k), tasks. (done)
+Testing printf
+0123456789ABCDEF     %d, 42 = 42
+%u, 42 = 42      %03u, 42 = 042
+%x, 42 = 2a       %c, 42 = *
+%b, 42 = 101010
+Testing stdarg
+Testing interrupt handler
+Testing threadsABBBBBBBBBBBBBBBBBBBBBBBCTests over. Spinning forever
+ACACACACACACACACACACACCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC

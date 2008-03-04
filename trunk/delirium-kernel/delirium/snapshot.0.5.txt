@@ -1,0 +1,23 @@
+   [Multiboot-elf, <0x100000:0x5003:0x0>, <0x106020:0x360:0xe964>, shtab=0x1151
+b8, entry=0x100000]
+module /test.elf
+   [Multiboot-module @ 0x123000, 0x18e1 bytes]
+
+
+
+
+
+
+
+                                                                                
+                                                                                
+
+
+
+
+DeLiRiUM v0.5 % Still not king.
+Configuring memory, interrupts, frameherd(+639k)(+3072k)(-80k)(-8k), paging, tas
+ks, ipc(254 rants max), kthump(mf:0xab41)(mode 3). (done)
+Loading ELF from 0x00123000
+[Read][Execute] 0x200000(0x200000), mem 0x7f, dsk 0x7f, aln 0x1000
+We are the music makers. And we are the dreamers of the dream.

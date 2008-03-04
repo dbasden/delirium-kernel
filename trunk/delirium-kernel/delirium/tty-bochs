@@ -1,0 +1,3 @@
+#! /bin/sh
+#bochs display_library:term gdbstub:enabled=1
+bochs -q display_library:term

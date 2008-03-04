@@ -1,0 +1,70 @@
+#! /usr/bin/python
+
+
+import sys
+
+base = 0x7ffff000
+next = 0x7ffff000
+inc = 4
+
+uk = []
+udir = {}
+
+for l in sys.stdin.readlines():
+	l = l.strip()
+	(user, kernel) = l.split()
+	uk.append((user, kernel))
+
+sys.stdout = file("./calls-user.S", "w")
+print """
+///////////////////////// 
+//
+// For crt0.S
+//
+
+	.text
+	.align 8
+"""
+
+for (user,kernel) in uk:
+	print ".global	%s" % user
+
+print
+
+for (user,kernel) in uk:
+	udir[user] = next
+	print ".set	%s, 0x%x" % (user, next)
+	next += inc
+sys.stdout.close()
+
+sys.stdout = file("./calls-kernel.S", "w")
+print """
+////////////////////////////////////////
+//
+// Mapping from user #PFs to kernel jmp
+//
+
+	.text
+
+	.global	pfhook_base
+	.global pfhook_end
+	.global pfhook_table
+
+pfhook_base:
+	.long	0x%x
+pfhook_end:
+	.long	0x%x
+
+	.align 8
+pfhook_table:""" % (base, next)
+
+
+for (user, kernel) in uk:
+	print """	.long	[%s]""" % (kernel)
+
+sys.stdout.close()
+sys.stdout = file("./calls.map", "w")
+for (user, kernel) in uk:
+	print " \t%s\t\t%s\t\t0x%x" % (user, kernel, udir[user])
+
+sys.stdout.close()

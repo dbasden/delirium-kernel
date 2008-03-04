@@ -1,0 +1,17 @@
+#! /bin/sh
+
+export ARCH=i386
+make -s image
+exit 0
+(make clean && make) > /dev/null  && (
+	echo -n Compiled OK. Copying...
+	sudo mount -oloop ./floppy.386 ./mnt
+	cp kern-i386 mnt
+	cp apps/test.elf ./mnt/test.elf
+	cp apps/fishy/fishy ./mnt/fishy.elf
+	sudo umount ./mnt
+	/sbin/e2fsck floppy.386
+	touch floppy.386
+	echo done
+)
+

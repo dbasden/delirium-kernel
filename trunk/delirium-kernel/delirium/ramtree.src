@@ -1,0 +1,7 @@
+apps/test/test.elf	apps/test
+apps/life/life		apps/life
+apps/life2/life2		apps/life2
+apps/fishy/fishy	apps/fishy
+../tmp/test		apps/bloat/prime
+apps/testserial/testserial	apps/testserial
+apps/vgatest/vgatest	apps/vgatest
