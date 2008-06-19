@@ -1,0 +1,42 @@
+*** This is literally over a year out of date; have added nodes -- dgb sep 05 ***
+
+Where does the kernel load?
+ o kern is loaded in at 0x100000. Nice place to start.
+   It can't be loaded below that, as the low memory is used by the bootloader.
+
+ [Sep O5: Still correct]
+
+Where is the stack?
+
+ o The initial stack, in boot.S, is 16k, and is sitting in the data section
+   of the kernel binary. This leaves low memory still free.
+
+ [Sep O5: Still here]
+
+What is in low memory?
+
+ o The index to the global descriptor table, the global descriptor table,
+   and initial kmalloc. Also, any information coming back from the multiboot
+   loader, so this should be grabbed quickly. See memmap.h for more info
+ 
+ [Sep 05: Wrong. GDT and IDT are now placed by the ELF loader in >1MB  with
+ the rest of the kernel. kmalloc is pretty much unused apart from the test
+ code ever since the frameherder was written, and memmap.h is probably
+ unused. The multiboot information, including memory maps and some ELF headers
+ are still <640k, and we grab them out early on. Once the frameherder is set
+ up, low memory frames are free to be allocated.]
+
+What is the deal with the apps directory?
+
+ o At the moment, you should get the Makefile to chuck all the .o's into a
+   .a, which then gets linked into the kernel. This will change when there is
+   actually a userspace and ELF loader.
+
+ [Jun 06: Out of date. There is now a userspace and an ELF loader. ELF
+ 	binaries and other support files are bundled into a ramtree image,
+	and loaded as a single file by the bootloader. Delirium then
+	unpacks the binaries so they can be executed at a later point.
+	For more information, look at the kernel ramtree loader, the
+	ramtree building tool, and the eve source code.]
+	tar-like file that 
+  

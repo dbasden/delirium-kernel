@@ -1,0 +1,3 @@
+void prime_add(prime_t * primes, prime_t newP);
+prime_t * prime_init();
+void prime_cleanup (prime_t *primes);

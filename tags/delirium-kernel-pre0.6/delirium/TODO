@@ -1,0 +1,30 @@
+	Need a way of adding stuff to a process specific page table, for different stuff. (Still todo) Although we could modify the page directory, it would be easier to copy the kernel space one, and then modify that per process. We would have to be *very* careful about adding stuff to kernel space if we decide that we want to allocate pages in any other way without updating EVERYTHING. This would suck<tm> Think of a better way to handle kernel stuff. Hardwire everything above or below a certain point and never change it?  This would mean NO page faults in that area of memory; 
+
+TODO:
+	- move the CPU inspecific stuff out of arch/i386/thread.c - stuff
+	  like the short term scheduler, and other logic that would be
+	  much cleaner if abstracted from the actual switching.
+	  ONLY do this if it doesn't bloat; thread switching should be
+	  VERY lightweight, and every CALL sucks.
+
+	- kernel memory pools; At them moment huge amounts of memory
+	  is being wasted by kgetpage() being used for every datastructure
+
+
+	- need emergency stack so kprintf will work fine when stack corrupt
+	   (Almost done. There *is* an emergency stack for when we have to
+	   kill a running thread's stack in the process of wiping it out.
+	   should just start using it in other places, or admit that the
+	   initial stack is a huge waste if we don't continue to use it
+	   in these edge cases)
+
+	(FIXED) vgaprint isn't threadsafe. (wrapped in semaphore vga_print_s
+		which is great as long as interrupts are on. kpanic manually
+		increments vga_print_s before calling so the semaphore will
+		always be available)
+	(FIXED)	semaphores aren't safe for use in interrupt handlers
+		(they now can be used; deadlock quite easy, so they
+		SHOULDN'T be used for locks)
+	(FIXED) delete thread sucks; It can't actually deallocate the stack memory.  Need a temporary stack. 
+	(FIXED) Paging is setup fine for everything in the kernel, before setup_paging() We are, however, not taking ANYTHING allocated after that. 
+	(DONE) We should have a way of adding stuff to the kernel page tables for internal kernel stuff 

@@ -1,0 +1,9 @@
+#!/bin/bash
+
+echo '#define KEYMAP \' > keymaps.h
+cat set3xlated.keymap | ./keymap2h.py >> keymaps.h
+echo '#define KEYMAP_SHIFT \' >> keymaps.h
+cat set3xlated.keymap set3xlated.shift.keymap | ./keymap2h.py >> keymaps.h
+echo '#define KEYMAP_CAPS \' >> keymaps.h
+cat set3xlated.keymap set3xlated.caps.keymap | ./keymap2h.py >> keymaps.h
+

@@ -1,0 +1,10 @@
+./build-i386 will rebuild the tree and place the binary in ./floppy.386
+This probably won't work straight off on a new system for reasons that
+will be obvious if you read build-i386
+
+./build-fake builds a userspace binary of the system. It probably broke
+some time ago when I started caring more about much more arch dependant
+stuff like task switching
+
+./qemu-delirium just runs floppy.386 in a qemu process.  There are
+also scripts for bochs

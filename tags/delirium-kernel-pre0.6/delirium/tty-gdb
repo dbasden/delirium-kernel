@@ -1,0 +1,2 @@
+#! /bin/sh
+gdb ./kern-i386 :1234 -s apps/fishy/fishy -d apps -d apps/fishy
