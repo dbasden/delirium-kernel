@@ -1,3 +1,12 @@
+/*
+ * tasks.c: Hold the context switching logic for delirium
+ *
+ * TODO: Move the STS out of the context switching code, and into the
+ * 	 non-arch dependant code.
+ * TODO: Allow use of the timer for something other than calling the STS
+ *
+ * Copyright (c)2004-2006 David Basden <davidb-delirium@rcpt.to>
+ */
 #include <delirium.h>
 #include <cpu.h>
 #include <assert.h>
@@ -32,6 +41,7 @@ thread_t	threads[MAX_THREADS];
 static inline u_int32_t get_task_to_run() {
 	int id;
 	
+	// Very simple round-robin
 	id = (running_thread_id+1) % MAX_THREADS;
 	while (id != running_thread_id  &&  (threads[id].state != running))
 		id = (id+1) % MAX_THREADS;
@@ -196,6 +206,20 @@ void setup_tasks() {
 
 
 void splinter(void *taskentry, void *newsp) {
+	/*
+	 * TODO: Fix logic error.
+	 *
+	 * If we hold splinter_sem, the next time the STS is called in
+	 * a timer interrupt it will assume that we want to split stuff off
+	 * using the data in sem_locked_spliter_to and sem_locked_splinter_sp
+	 *
+	 * The real problem is if we get a timer interrupt BEFORE we set these
+	 * two variables. We really should splinter stuff off without relying
+	 * on the STS to do it; Putting the new entry and stack pointer into the
+	 * process queue, and just waiting for the STS to deal should be enough.
+	 * We can then duplicate the previous behaviour by yielding context once
+	 * all this is setup.
+	 */
 
 	SPIN_WAIT_SEMAPHORE(splinter_sem); // Get lock
 
@@ -208,7 +232,6 @@ void splinter(void *taskentry, void *newsp) {
 			 * of the splinter
 			 */
 
-	// EVIL HACK:
 	// We DONT release the semaphore here. It will be released when our 
 	// splinter request is handled!
 }
