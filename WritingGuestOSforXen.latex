@@ -1,0 +1,175 @@
+\documentclass[11pt,a4paper]{article}
+\begin{document}
+
+\title{Porting an x86 OS to run as a Xen 3.0 Guest}
+\author{David Basden (davidb-portxen@rcpt.to)}
+\date{\today}
+
+\maketitle
+
+
+
+
+\tableofcontents
+
+\pagebreak
+
+\section{Introduction}
+
+Despite the best efforts of the developers of the Xen codebase, much of the
+documentation available for the interface between the Xen 3.0 hypervisor and 
+guest operating systems refers specifically to the port of the Linux kernel 
+to the Xen hypervisor..
+
+The remaining infromation about the hypervisor / guest interface is lacking specifics
+about the current ABI and calling conventions for the x86/32 platform, or refers to 
+the now outdated Xen 2.0 hypervisor / guest interface. I will attempt to fill in 
+some of these gaps in this document.
+
+This document should be of most interest to developers porting an existing IA32/x86-32
+operating system to run under the Xen 3.0 hypervisor. It should be read in conjunction
+with the official Xen hypervisor interface documentation for Xen 3.0.
+
+The version of the Xen hypervisor that is referred to in this document is version 3.0.2.
+The example operating system being ported is DeLiRiuM v0.6 
+\verb|http://davidb.ucc.asn.au/delirium/|.
+Code examples in this document that are taken from DeLiRiuM are released under the General
+Public Licence version 2.0.  The kernel binary format for the guest operating 
+system is assumed to be ELF.
+
+\section{ELF Notes: Hints to the hypervisor for loading}
+
+\subsection{Purpose of the ELF Notes}
+The Xen hypervisor, like many bootstrappers for modern operating systems, looks for
+information in the kernel being loaded. In this case these hints:
+
+\begin{itemize}
+	\item make sure the binary is a guest kernel for xen
+	\item instruct Xen on where to load the kernel
+	\item instruct Xen on the kernel entrypoint for Start-Of-Day
+	\item specify Xen hypervisor features requested or required by the guest OS
+\end{itemize}
+
+These hints are embedded in the guest kernel binary using ELF notes.  ELF notes replace 
+the now deprecated \verb/__xen_guest/ string interface used in previous
+hypervisor versions.
+
+\subsection{Implementing ELF Notes}
+
+Information specified in the ELF notes are required as well the ELF program and segment 
+headers, which give more specific loading information. Both the ELF headers and the
+ELF notes {\bf must} be consistent for the hypervisor to load the guest kernel.
+
+The specifics of the notes, and those required, Specifics as to the contents
+of the notes are found in the {\it xen/include/public/elfnotes.h} Xen headers. 
+\footnote{Xen headers in this case and throughout the document refer to headers in the Xen 3.0.2 hypervisor source tree}
+All ELF notes for the Xen hypervisor must have the ELF Note name of 'Xen'.
+
+There is a good overview of (not specific to Xen) ELF notes and their 
+implementation available from the NetBSD web-site at 
+
+\verb|http://www.netbsd.org/docs/kernel/elf-notes.html|.
+
+\subsubsection{ELF Note macro example}
+
+The following is a simple macro for the GNU assembler to include an ELF note
+when using GNU ld:
+
+\begin{small}
+\begin{verbatim}
+.macro ELFNOTE name, type, desc:vararg
+        .p2align 2
+        .long   1f - 0f
+        .long   3f - 2f
+        .long   \type
+0:      .asciz  "\name"
+1:      .p2align 2
+2:      \desc
+3:      .p2align 2
+.endm
+\end{verbatim}
+\end{small}
+
+Note: The above code will only be linked correctly as a note (i.e. put in an ELF
+\verb/PH_NOTE/ segment) when it is placed a subsection of \verb/.note/.
+
+\subsubsection{Xen ELF Note examples}
+
+The following are some examples of using the above macro to provide ELF notes
+to the Xen hypervisor:
+
+\begin{small}
+\begin{verbatim}
+        .section ".note.Xen", "a"
+
+ELFNOTE Xen XEN_ELFNOTE_XEN_VERSION     .asciz "xen-3.0"
+ELFNOTE Xen XEN_ELFNOTE_GUEST_OS        .asciz "DeLiRiuM"
+ELFNOTE Xen XEN_ELFNOTE_GUEST_VERSION   .asciz "0.6-xen"
+ELFNOTE Xen XEN_ELFNOTE_LOADER          .asciz "generic"
+ELFNOTE Xen XEN_ELFNOTE_VIRT_BASE       .long 0
+ELFNOTE Xen XEN_ELFNOTE_ENTRY           .long [_start]
+ELFNOTE Xen XEN_ELFNOTE_FEATURES 	 .asciz "writable_page_tables"
+ELFNOTE Xen XEN_ELFNOTE_PAE_MODE        .asciz "yes"
+ELFNOTE Xen XEN_ELFNOTE_HYPERCALL_PAGE  .long HYPERCALL_BASE
+\end{verbatim}
+\end{small}
+
+\pagebreak
+
+\section{Hypercalls}
+\subsection{The Hypercall Page}
+
+The Xen hypervisor exports a 4KB page to the IA32/x86-32 guest kernel, which
+contains code to invoke each hypercall. The code for a specific hypercall is
+located at \verb/(hypercall_page_base + (hypercall_number * 32))/, 
+where \verb/hypercall_page_base/ is the start address of the hypercall 
+page exported by the hypervisor, and hypercall
+number is the numeric hypercall ID, as found in {\it xen/include/public/xen.h}
+
+You can specify the virtual address into which to map the hypercall page into 
+with the \verb/XEN_ELFNOTE_HYPERCALL_PAGE/ ELF note. Obviously this address 
+has to be 4096 byte aligned, and not contain any other code/data you 
+want to access when starting up.
+
+\subsection{Hypercall calling conventions}
+
+Params are passed by registers 
+(in-order) eax, ebx, ecx, esi, edi.
+
+eax is the hypercall number, while ebx and
+onward store the paramaters. To call, load
+up registers except EAX and execute a CALL to 
+
+	\verb/(HYPERCALL_PAGE + (hypercall_num * 32))/.
+
+The stub code in the hypercall page will correctly fill eax for you, and make the
+hypervisor by calling INT 0x82. The hypercall return value will be in eax on return,
+and all other paramater registered will have been clobbered.
+
+\subsubsection{Example hypercall wrapper}
+
+This is (a rather poorly written) example of a wrapper function to take hypercalls parameters
+from the stack and passing-by-register to the Xen hypercall page, while also saving and
+restoring registers that would otherwise be clobbered by the hypercall.
+
+\begin{small}
+\begin{verbatim}
+examplehypercall:
+        pushl   %ebp
+        movl    %esp,%ebp
+        pushal  // EAX ECX EDX EBX ESP EBP ESI EDI
+        movl    8(%ebp), %ebx
+        movl    12(%ebp), %ecx
+        movl    16(%ebp), %edx
+        movl    18(%ebp), %esi
+        movl    22(%ebp), %edi
+        call    (HYPERCALL_PAGE + (HYPERCALL_example * 32))
+        popal
+        movl    %ebp,%esp
+        popl    %ebp
+        ret
+\end{verbatim}
+\end{small}
+
+\end{document}
+
