@@ -47,7 +47,8 @@ STRIP=$(CROSSPREFIX)strip
 CFLAGS=-Wall -ffreestanding -Wsystem-headers -mpush-args -nostdlib -g
 BASEDIR=.
 INCLUDES=-nostdinc -isystem${BASEDIR}/include/
-DEFAULTARCH=i386
+#DEFAULTARCH=i386
+DEFAULTARCH=xen
 
 #--------------------------------------------------------------------
 
