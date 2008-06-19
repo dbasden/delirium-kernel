@@ -1,0 +1,5 @@
+This port is a work in progress. It may not actually boot, work, or do anything else useful.
+
+If you're wondering why it won't work, see above, and look at the main trunk for the i386/IA-32 code.
+
+		- davidb

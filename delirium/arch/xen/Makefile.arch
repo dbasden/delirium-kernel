@@ -1,0 +1,14 @@
+# Make sure we link boot.o first, as it contains the xen header
+ARCHOBJS=arch/xen/boot.o
+
+# ported arch specific files
+ARCHOBJS+= arch/xen/hypercall.o arch/xen/setup.o arch/xen/mem.o
+ARCHOBJS+= arch/xen/inth.o arch/xen/cpu.o
+
+# for the unprted stuff use the IA32 stuff for now. It will almost
+# certainly be b0rked
+ARCHOBJS+=arch/i386/pic.o arch/i386/io.o 
+ARCHOBJS+= arch/i386/tasks.o arch/i386/paging.o
+ARCHOBJS+= arch/i386/calls-kernel.o
+
+INCLUDES+= -Iarch/xen/include

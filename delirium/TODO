@@ -18,6 +18,16 @@ TODO:
 	   initial stack is a huge waste if we don't continue to use it
 	   in these edge cases)
 
+	- #PF handler is blowing way %ecx, which is so not cool. Can't
+	  check the %cr registers directly (??) so we have to find a 'spare'
+	  register (dr3? *wince*) to store eax/whatever into when we have
+	  to reliability that the stack is correct.
+
+	  The other optionare to get the CPU to gate us into a different
+	  stack, or deliberately handle stuff in double-fault handler if we
+	  get a protection violation (BTW Using IO memory for temporary storage
+	  is JUST WRONG AL! (and might not be paged in correctly) )
+
 	(FIXED) vgaprint isn't threadsafe. (wrapped in semaphore vga_print_s
 		which is great as long as interrupts are on. kpanic manually
 		increments vga_print_s before calling so the semaphore will
