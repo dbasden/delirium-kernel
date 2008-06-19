@@ -1,0 +1,22 @@
+This is the development tree of delirium.
+
+The documentation may be non-existant, or out of date. I'm in the process
+of translating notes from paper, and in my head, into actual readable
+text files. 
+
+Until then, the source is going to be the best place to start.
+kernel/kernel.c makes a good C entry point, or arch/i386/boot.S if you're
+a bit more interested in evil.
+
+The userspace interface documentation got lost when the svn repository
+went down, so the code in apps would be unfortunately the best place to
+look. The apps/* files, with the exception of dlib and eve, were only
+put together as tests. apps/test/test.c is the original test suite,
+and should test some of the basics (threading, IPC etc).
+
+The target so far has been gcc-3.4. gcc-4.0.4 has been reputed to work,
+however might cause problems until gcc-4 is a bit more tested. Assembly
+that might work in linux userspace is going to burn you when you're
+trying to compile the memory protection itself.
+
+Good luck.

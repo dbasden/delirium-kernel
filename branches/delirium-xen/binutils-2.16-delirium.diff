@@ -1,0 +1,130 @@
+diff -u -N -r binutils-2.16.1cvs20050902/bfd/config.bfd binutils-2.16.1cvs20050902.new/bfd/config.bfd
+--- binutils-2.16.1cvs20050902/bfd/config.bfd	2005-08-31 11:27:28.000000000 +0800
++++ binutils-2.16.1cvs20050902.new/bfd/config.bfd	2005-11-05 15:05:59.000000000 +0800
+@@ -611,7 +611,10 @@
+     targ_defvec=bfd_elf32_i386_vec
+     targ_selfvecs=i386chaos_vec
+     ;;
+-
++  i[3-7]86-*-delirium)
++    targ_defvec=bfd_elf32_i386_vec
++    targ_selfvecs=delirium_vec
++    ;;
+   i860-*-mach3* | i860-*-osf1* | i860-*-coff*)
+     targ_defvec=i860coff_vec
+     ;;
+diff -u -N -r binutils-2.16.1cvs20050902/config.sub binutils-2.16.1cvs20050902.new/config.sub
+--- binutils-2.16.1cvs20050902/config.sub	2005-07-22 06:09:42.000000000 +0800
++++ binutils-2.16.1cvs20050902.new/config.sub	2005-11-05 14:46:16.000000000 +0800
+@@ -120,7 +120,7 @@
+ maybe_os=`echo $1 | sed 's/^\(.*\)-\([^-]*-[^-]*\)$/\2/'`
+ case $maybe_os in
+   nto-qnx* | linux-gnu* | linux-dietlibc | linux-uclibc* | uclinux-uclibc* | uclinux-gnu* | \
+-  kfreebsd*-gnu* | knetbsd*-gnu* | netbsd*-gnu* | storm-chaos* | os2-emx* | rtmk-nova*)
++  kfreebsd*-gnu* | knetbsd*-gnu* | netbsd*-gnu* | storm-chaos* | os2-emx* | rtmk-nova* | delirium-*)
+     os=-$maybe_os
+     basic_machine=`echo $1 | sed 's/^\(.*\)-\([^-]*-[^-]*\)$/\1/'`
+     ;;
+@@ -1188,7 +1188,7 @@
+ 	      | -os2* | -vos* | -palmos* | -uclinux* | -nucleus* \
+ 	      | -morphos* | -superux* | -rtmk* | -rtmk-nova* | -windiss* \
+ 	      | -powermax* | -dnix* | -nx6 | -nx7 | -sei* | -dragonfly* \
+-	      | -skyos* | -haiku*)
++	      | -skyos* | -haiku* | -delirium* )
+ 	# Remember, each alternative MUST END IN *, to match a version number.
+ 		;;
+ 	-qnx*)
+@@ -1563,6 +1563,9 @@
+ 			-vos*)
+ 				vendor=stratus
+ 				;;
++			-delirium*)
++				vendor=shikita
++				;;
+ 		esac
+ 		basic_machine=`echo $basic_machine | sed "s/unknown/$vendor/"`
+ 		;;
+diff -u -N -r binutils-2.16.1cvs20050902/gas/configure.tgt binutils-2.16.1cvs20050902.new/gas/configure.tgt
+--- binutils-2.16.1cvs20050902/gas/configure.tgt	2005-08-31 11:27:32.000000000 +0800
++++ binutils-2.16.1cvs20050902.new/gas/configure.tgt	2005-11-05 14:47:24.000000000 +0800
+@@ -162,6 +162,7 @@
+   i386-*-beospe*)			fmt=coff em=pe ;;
+   i386-*-beos*)				fmt=elf ;;
+   i386-*-coff)				fmt=coff ;;
++  i386-*-delirium)			fmt=elf ;;
+   i386-*-elf)				fmt=elf ;;
+   i386-*-kaos*)				fmt=elf ;;
+   i386-*-bsd*)				fmt=aout em=386bsd ;;
+diff -u -N -r binutils-2.16.1cvs20050902/ld/Makefile.am binutils-2.16.1cvs20050902.new/ld/Makefile.am
+--- binutils-2.16.1cvs20050902/ld/Makefile.am	2005-08-31 11:27:36.000000000 +0800
++++ binutils-2.16.1cvs20050902.new/ld/Makefile.am	2005-11-05 14:35:03.000000000 +0800
+@@ -142,6 +142,7 @@
+ 	ed30v_e.o \
+ 	ed30v_o.o \
+ 	ed30velf.o \
++	edelirium.o \
+ 	edelta68.o \
+ 	eelf32_dlx.o \
+ 	eelf32_i960.o \
+@@ -612,6 +613,9 @@
+ ed30v_e.c: $(srcdir)/emulparams/d30v_e.sh \
+   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/elfd30v.sc ${GEN_DEPENDS}
+ 	${GENSCRIPTS} d30v_e "$(tdir_d30v)"
++edelirium.c: $(srcdir)/emulparams/delirium.sh \
++  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
++	${GENSCRIPTS} delirium "$(tdir_delirium)"
+ edelta68.c: $(srcdir)/emulparams/delta68.sh \
+   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/delta68.sc ${GEN_DEPENDS}
+ 	${GENSCRIPTS} delta68 "$(tdir_delta68)"
+diff -u -N -r binutils-2.16.1cvs20050902/ld/Makefile.in binutils-2.16.1cvs20050902.new/ld/Makefile.in
+--- binutils-2.16.1cvs20050902/ld/Makefile.in	2005-08-31 11:27:36.000000000 +0800
++++ binutils-2.16.1cvs20050902.new/ld/Makefile.in	2005-11-05 14:30:29.000000000 +0800
+@@ -366,6 +366,7 @@
+ 	ed30v_o.o \
+ 	ed30velf.o \
+ 	edelta68.o \
++	edelirium.o \
+ 	eelf32_dlx.o \
+ 	eelf32_i960.o \
+ 	eelf32_i860.o \
+@@ -1416,6 +1417,9 @@
+ ed30v_e.c: $(srcdir)/emulparams/d30v_e.sh \
+   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/elfd30v.sc ${GEN_DEPENDS}
+ 	${GENSCRIPTS} d30v_e "$(tdir_d30v)"
++edelirium.c: $(srcdir)/emulparams/delirium.sh \
++  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
++	${GENSCRIPTS} delirium "$(tdir_delirium)"
+ edelta68.c: $(srcdir)/emulparams/delta68.sh \
+   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/delta68.sc ${GEN_DEPENDS}
+ 	${GENSCRIPTS} delta68 "$(tdir_delta68)"
+diff -u -N -r binutils-2.16.1cvs20050902/ld/configure.tgt binutils-2.16.1cvs20050902.new/ld/configure.tgt
+--- binutils-2.16.1cvs20050902/ld/configure.tgt	2005-08-31 11:27:36.000000000 +0800
++++ binutils-2.16.1cvs20050902.new/ld/configure.tgt	2005-11-05 16:16:30.000000000 +0800
+@@ -188,6 +188,9 @@
+ x86_64-*-elf*)		targ_emul=elf_x86_64
+ 			targ_extra_emuls=elf_i386
+ 			;;
++i[3-7]86-*-delirium*)	targ_emul=delirium
++			targ_extra_emuls=elf_i386
++			;;
+ i[3-7]86-*-kaos*)	targ_emul=elf_i386 ;;
+ i[3-7]86-*-freebsdaout* | i[3-7]86-*-freebsd[12].* | i[3-7]86-*-freebsd[12])
+ 			targ_emul=i386bsd ;;
+diff -u -N -r binutils-2.16.1cvs20050902/ld/emulparams/delirium.sh binutils-2.16.1cvs20050902.new/ld/emulparams/delirium.sh
+--- binutils-2.16.1cvs20050902/ld/emulparams/delirium.sh	1970-01-01 08:00:00.000000000 +0800
++++ binutils-2.16.1cvs20050902.new/ld/emulparams/delirium.sh	2005-11-05 16:41:34.000000000 +0800
+@@ -0,0 +1,14 @@
++SCRIPT_NAME=elf
++OUTPUT_FORMAT="elf32-i386"
++TEXT_START_ADDR=0x40000000
++MAXPAGESIZE=0x1000
++COMMONPAGESIZE=0x1000
++NONPAGED_TEXT_START_ADDR=0x40000000
++ARCH=i386
++MACHINE=
++NOP=0x90909090
++TEMPLATE_NAME=elf32
++GENERATE_SHLIB_SCRIPT=no
++GENERATE_PIE_SCRIPT=yes
++NO_SMALL_DATA=yes
++SEPARATE_GOTPLT=12

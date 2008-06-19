@@ -1,0 +1,16 @@
+Okay, use a bit vector to store a bit per page.
+
+Then make a btree (NOT bsearchtree) of the free pages in the vector, with
+the smallest counter being 32 bits. Each item in the tree will be the 
+sum of all items below the tree. The lowest most items will also have a pointer
+to the item they represent.
+
+This doesn't have to be done in a linked way because the tree layout
+never changes, and it is always going to be a full tree.
+
+When pages are allocated, there are log(n) operations to update the
+free item counters above the item. Finding free pages should be
+simple. A depth-first traversal of the tree over whichever branch has
+the MOST amount of free pages should prefer allocation of unfragmented
+space
+

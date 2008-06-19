@@ -1,0 +1,35 @@
+Realm is a pretty simple UI concept.
+
+Normally in VGA text mode, you'll have just 80x25, most of which
+will be wasted unless you are actually reading a book. How many
+times have you read a book in text mode? Yeah, I thought so.
+
+Some operating systems when giving information at boot time in
+any sort of verbose way will just use some form of printf, and
+dump stuff to the screen. Most of the information is crap, and
+scrolls the useful information off the screen. Ways to scroll
+back and get it pretty much defeat the point.
+
+How about if each logical set of information (say, interrupt handler
+context, memory manager, puppy trainer) had it's own area on the
+screen, that it got to update, that for the most part didn't
+get messed with. That way you wouldn't have to worry about your
+memory manager information being overridden by your puppy trainer,
+and you didn't waste half your screen saying "HEY! THIS LINE IS
+ABOUT THE MEMORY MANAGER", because the information should be
+bloody self evident. Who the hell ever saw a puppy trainer with
+Used: and Free:.
+
+The obvious question is then asked: "Okay bozo, but who the smeg
+want's to get all these things to collaborate? Someone is going to
+have to place those little windows everywhere, and move the puppy
+trainer out of the way". Not really. It's done automagically. If
+the screen gets full, the "vision" (my name for the little windows)
+that was updated the least recently will be removed automagically.
+You can give them a bonus value to start with, which is just get-
+out-of-deletion-free points.
+
+o All visions are just plain text
+o The size of a vision must be a multiple of 10 characters
+o each vision must be fine with having a new row every 10 characters
+o there is NO control by the vision over many characters it is

@@ -1,0 +1,140 @@
+# DO NOT DELETE
+
+./kernel/klib.o: ./include/delirium.h ./include/stdarg.h ./include/cpu.h
+./kernel/klib.o: ./include/i386/cpu.h ./include/kvga.h ./include/klib.h
+./kernel/kernel.o: ./include/delirium.h ./include/cpu.h ./include/i386/cpu.h
+./kernel/kernel.o: ./include/multiboot.h ./include/elf.h
+./kernel/kernel.o: ./include/multitask.h ./include/i386/task.h
+./kernel/kernel.o: ./include/i386/gdt.h ./include/i386/paging.h
+./kernel/kernel.o: ./include/dlib/queue.h ./include/setup.h ./include/klib.h
+./kernel/kernel.o: ./include/frameherd.h ./include/dlib/bitvec.h
+./kernel/kernel.o: ./include/kthump.h ./include/soapbox.h ./include/rant.h
+./kernel/kernel.o: ./include/ipc.h ./include/dlib/cqueue.h
+./kernel/kernel.o: ./include/ramtree.h
+./kernel/kvga.o: ./include/assert.h ./include/delirium.h ./include/klib.h
+./kernel/kvga.o: ./include/cpu.h ./include/i386/cpu.h ./include/kvga.h
+./kernel/ipc.o: ./include/delirium.h ./include/assert.h ./include/klib.h
+./kernel/ipc.o: ./include/ipc.h ./include/dlib/cqueue.h ./include/paging.h
+./kernel/ipc.o: ./include/i386/paging.h
+./kernel/rant.o: ./include/delirium.h ./include/assert.h ./include/klib.h
+./kernel/rant.o: ./include/cpu.h ./include/i386/cpu.h ./include/paging.h
+./kernel/rant.o: ./include/i386/paging.h ./include/soapbox.h ./include/ipc.h
+./kernel/rant.o: ./include/dlib/cqueue.h ./include/rant.h
+./kernel/rant.o: ./include/dlib/memherd.h ./include/dlib/bitvec.h
+./kernel/rant.o: ./include/dlib/queue.h ./include/i386/task.h
+./kernel/rant.o: ./include/i386/gdt.h
+./kernel/elf.o: ./include/delirium.h ./include/cpu.h ./include/i386/cpu.h
+./kernel/elf.o: ./include/klib.h ./include/elf.h ./include/paging.h
+./kernel/elf.o: ./include/i386/paging.h ./include/multitask.h
+./kernel/elf.o: ./include/i386/task.h ./include/i386/gdt.h
+./kernel/elf.o: ./include/dlib/queue.h
+./kernel/frameherd.o: ./include/delirium.h ./include/assert.h
+./kernel/frameherd.o: ./include/klib.h ./include/dlib/bitvec.h
+./kernel/frameherd.o: ./include/frameherd.h ./include/paging.h
+./kernel/frameherd.o: ./include/i386/paging.h
+./kernel/kthump.o: ./include/delirium.h ./include/assert.h ./include/klib.h
+./kernel/kthump.o: ./include/ipc.h ./include/dlib/cqueue.h ./include/rant.h
+./kernel/kthump.o: ./include/soapbox.h ./include/cpu.h ./include/i386/cpu.h
+./kernel/kthump.o: ./include/i386/interrupts.h ./include/i386/pic.h
+./kernel/kthump.o: ./include/i386/io.h ./include/kthump.h
+./kernel/paging.o: ./include/delirium.h ./include/frameherd.h
+./kernel/paging.o: ./include/dlib/bitvec.h ./include/paging.h
+./kernel/paging.o: ./include/i386/paging.h ./include/klib.h
+./kernel/soapbox.o: ./include/delirium.h ./include/dlib/map.h
+./kernel/soapbox.o: ./include/dlib/bsearchtree.h ./include/dlib/btree.h
+./kernel/soapbox.o: ./include/cpu.h ./include/i386/cpu.h ./include/paging.h
+./kernel/soapbox.o: ./include/i386/paging.h ./include/klib.h
+./kernel/soapbox.o: ./include/soapbox.h
+./kernel/ramtree.o: ./include/delirium.h ./include/klib.h ./include/ramtree.h
+./kernel/ramtree.o: ./include/paging.h ./include/i386/paging.h
+./kernel/ramtree.o: ./include/soapbox.h
+./include/frameherd.o: ./include/delirium.h ./include/dlib/bitvec.h
+./include/paging.o: ./include/i386/paging.h
+./include/assert.o: ./include/delirium.h ./include/klib.h
+./include/klib.o: ./include/delirium.h
+./include/ramtree.o: ./include/delirium.h
+./include/cpu.o: ./include/i386/cpu.h
+./include/multitask.o: ./include/i386/task.h ./include/delirium.h
+./include/multitask.o: ./include/i386/gdt.h ./include/i386/paging.h
+./include/multitask.o: ./include/dlib/queue.h
+./include/elf.o: ./include/delirium.h
+./include/ipc.o: ./include/dlib/cqueue.h
+./include/kallz.o: ./include/delirium.h
+./include/rant.o: ./include/delirium.h ./include/soapbox.h ./include/ipc.h
+./include/rant.o: ./include/dlib/cqueue.h
+./include/soapbox.o: ./include/delirium.h
+./apps/test.o: ./include/delirium.h ./apps/delibrium/delibrium.h
+./apps/test.o: ./include/stdarg.h ./include/assert.h ./include/klib.h
+./apps/test.o: ./include/cpu.h ./include/i386/cpu.h ./include/ipc.h
+./apps/test.o: ./include/dlib/cqueue.h ./include/soapbox.h ./include/rant.h
+./apps/crt0.o: ./include/i386/interrupts.h ./include/delirium.h
+./apps/fishy/life.o: ./include/delirium.h ./apps/delibrium/delibrium.h
+./apps/fishy/life.o: ./include/stdarg.h ./apps/fishy/vga.h
+./apps/fishy/life.o: ./apps/fishy/vga_modes.h
+./apps/fishy/dsh.o: ./include/delirium.h ./apps/delibrium/delibrium.h
+./apps/fishy/dsh.o: ./include/stdarg.h ./apps/fishy/readline.h
+./apps/fishy/vga.o: ./include/delirium.h ./include/i386/io.h
+./apps/fishy/vga.o: ./include/paging.h ./include/i386/paging.h
+./apps/fishy/vga.o: ./apps/delibrium/delibrium.h ./include/stdarg.h
+./apps/fishy/vga.o: ./apps/fishy/vga.h ./apps/fishy/vga_modes.h
+./apps/fishy/vga.o: ./apps/fishy/img.h
+./apps/fishy/fishy.o: ./include/delirium.h ./include/ipc.h
+./apps/fishy/fishy.o: ./include/dlib/cqueue.h ./include/rant.h
+./apps/fishy/fishy.o: ./include/soapbox.h ./apps/delibrium/delibrium.h
+./apps/fishy/fishy.o: ./include/stdarg.h ./apps/fishy/readline.h
+./apps/fishy/testserial.o: ./apps/delibrium/delibrium.h ./include/delirium.h
+./apps/fishy/testserial.o: ./include/stdarg.h
+./apps/fishy/vga_modes.o: ./include/delirium.h ./apps/fishy/vga.h
+./apps/fishy/vga_modes.o: ./include/delirium.h ./apps/fishy/vga.h
+./apps/delibrium/lib.o: ./include/delirium.h ./include/stdarg.h
+./apps/delibrium/thread.o: ./include/delirium.h ./include/multitask.h
+./apps/delibrium/thread.o: ./include/i386/task.h ./include/i386/gdt.h
+./apps/delibrium/thread.o: ./include/i386/paging.h ./include/dlib/queue.h
+./apps/delibrium/thread.o: ./apps/delibrium/delibrium.h ./include/stdarg.h
+./apps/delibrium/thread.o: ./include/paging.h ./include/rant.h
+./apps/delibrium/thread.o: ./include/soapbox.h ./include/ipc.h
+./apps/delibrium/thread.o: ./include/dlib/cqueue.h
+./apps/delibrium/ipv4.o: ./include/delirium.h
+./apps/delibrium/delibrium.o: ./include/delirium.h ./include/stdarg.h
+./apps/delibrium/serial.o: ./include/delirium.h ./include/i386/io.h
+./apps/eve/dsh.o: ./include/delirium.h ./apps/delibrium/delibrium.h
+./apps/eve/dsh.o: ./include/stdarg.h ./apps/fishy/readline.h
+./apps/eve/eve.o: ./include/delirium.h ./include/ipc.h
+./apps/eve/eve.o: ./include/dlib/cqueue.h ./include/rant.h
+./apps/eve/eve.o: ./include/soapbox.h ./apps/delibrium/delibrium.h
+./apps/eve/eve.o: ./include/stdarg.h ./apps/fishy/readline.h
+./arch/fake/boot.o: ./include/fake/fake.h ./include/delirium.h
+./arch/fake/boot.o: ./include/kvga.h ./include/cpu.h ./include/i386/cpu.h
+./arch/fake/boot.o: ./include/multiboot.h ./include/klib.h
+./arch/fake/cpu.o: ./include/delirium.h ./include/cpu.h ./include/i386/cpu.h
+./arch/fake/cpu.o: ./include/kvga.h
+./arch/i386/include/interrupts.o: ./include/delirium.h
+./arch/i386/include/gdt.o: ./include/delirium.h
+./arch/i386/include/segments.o: ./include/delirium.h ./include/i386/gdt.h
+./arch/i386/include/io.o: ./include/delirium.h
+./arch/i386/include/task.o: ./include/delirium.h ./include/i386/gdt.h
+./arch/i386/include/task.o: ./include/i386/paging.h ./include/dlib/queue.h
+./arch/i386/boot.o: ./include/multiboot.h
+./arch/i386/mem.o: ./include/delirium.h ./include/i386/task.h
+./arch/i386/mem.o: ./include/i386/gdt.h ./include/i386/paging.h
+./arch/i386/mem.o: ./include/dlib/queue.h
+./arch/i386/cpu.o: ./include/i386/gdt.h ./include/delirium.h
+./arch/i386/cpu.o: ./include/i386/interrupts.h
+./arch/i386/io.o: ./include/delirium.h ./include/i386/io.h
+./arch/i386/setup.o: ./include/delirium.h ./include/klib.h ./include/kvga.h
+./arch/i386/setup.o: ./include/i386/cpu.h ./include/i386/mem.h
+./arch/i386/setup.o: ./include/i386/interrupts.h ./include/i386/pic.h
+./arch/i386/pic.o: ./include/delirium.h ./include/klib.h ./include/kvga.h
+./arch/i386/pic.o: ./include/i386/cpu.h ./include/i386/mem.h
+./arch/i386/pic.o: ./include/i386/interrupts.h ./include/i386/io.h
+./arch/i386/tasks.o: ./include/delirium.h ./include/cpu.h
+./arch/i386/tasks.o: ./include/i386/cpu.h ./include/assert.h ./include/klib.h
+./arch/i386/tasks.o: ./include/paging.h ./include/i386/paging.h
+./arch/i386/tasks.o: ./include/rant.h ./include/soapbox.h ./include/ipc.h
+./arch/i386/tasks.o: ./include/dlib/cqueue.h ./include/dlib/queue.h
+./arch/i386/tasks.o: ./include/i386/task.h ./include/i386/gdt.h
+./arch/i386/tasks.o: ./include/i386/interrupts.h ./include/i386/pic.h
+./arch/i386/paging.o: ./include/delirium.h ./include/paging.h
+./arch/i386/paging.o: ./include/i386/paging.h ./include/frameherd.h
+./arch/i386/paging.o: ./include/dlib/bitvec.h ./include/klib.h
+./arch/i386/paging.o: ./include/kvga.h ./include/i386/interrupts.h

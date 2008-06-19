@@ -1,0 +1,25 @@
+
+
+Delirium v0.2 % Still not king.
+Malloc 16k at 0x02100
+Malloc 16k at 0x06200
+Malloc 16k at 0x0a300
+Malloc 16k at 0x0e400
+Malloc 16k at 0x012500
+Malloc 16k at 0x016600
+Malloc 16k at 0x01a700
+Malloc 16k at 0x01e800
+Malloc 16k at 0x022900
+Malloc 16k at 0x026a00
+Testing printf
+0123456789ABCDEF
+
+%d, 42 = 42
+%u, 42 = 42
+%x, 42 = 2a
+%c, 42 = *
+%b, 42 = 101010
+Testing stdarg
+Tests over :-)
+Halted.
+
