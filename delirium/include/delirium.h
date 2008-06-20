@@ -2,7 +2,7 @@
 #define _DELIRIUM_H
 
 #define	DELIRIUM_MAJOR_VER	0
-#define	DELIRIUM_MINOR_VER	5
+#define	DELIRIUM_MINOR_VER	6
 
 #define	NULL	((void *)0x0)
 
