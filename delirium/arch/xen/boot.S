@@ -57,7 +57,7 @@ delirium_end_ptr:
 	ELFNOTE	Xen XEN_ELFNOTE_VIRT_BASE	.long 0
 	ELFNOTE	Xen XEN_ELFNOTE_ENTRY		.long [_start]
 	ELFNOTE Xen XEN_ELFNOTE_FEATURES	.asciz "writable_page_tables|auto_translated_physmap|writable_descriptor_tables|"
-	ELFNOTE	Xen XEN_ELFNOTE_PAE_MODE	.asciz "yes"
+	ELFNOTE	Xen XEN_ELFNOTE_PAE_MODE	.asciz "no"
 	ELFNOTE	Xen XEN_ELFNOTE_HYPERCALL_PAGE	.long HYPERCALL_BASE
 
 /***********************************/
