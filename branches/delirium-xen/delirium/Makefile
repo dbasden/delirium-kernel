@@ -68,8 +68,14 @@ image-xen: kern-xen apps ramtree-xen-install
 	cp xen.gz boot
 	cp kern-xen boot
 	echo "(fd0)	`pwd`/floppy.xen" > boot/boot/grub/device.map
-	genext2fs -b 1440 -d boot/ ./floppy.xen 
+	rm -rf /tmp/deliriumboottmp || true
+	# There isn't room on the floppy for the svn metadata
+	# (not that it should be there anyhow) -- davidb
+	#genext2fs -b 1440 -d boot/ ./floppy.xen 
+	( if [ -d boot/.svn ]; then svn export boot/ /tmp/deliriumboottmp; else	cp -a boot /tmp/deliriumboottmp; fi )
+	genext2fs -b 1440 -d /tmp/deliriumboottmp/ ./floppy.xen && \
 	echo -e 'root (fd0)\ninstall /boot/grub/stage1 d (fd0) /boot/grub/stage2\nquit\n' | /usr/sbin/grub --batch --device-map=`pwd`/boot/boot/grub/device.map --no-floppy --boot-drive='(fd0)'
+	rm -rf /tmp/deliriumboottmp || true
 
 image-i386: kern-i386 apps ramtree
 	sudo mount -oloop ./floppy.386 ./mnt
