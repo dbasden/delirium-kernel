@@ -31,6 +31,9 @@ eve/eve:
 test/test.elf:
 	make -C test
 
+test/testfaults:
+	make -C testfaults
+
 life/life:
 	make -C life
 
@@ -51,6 +54,7 @@ clean:
 	make -C delibrium clean
 	make -C life clean
 	make -C test clean
+	make -C testfaults clean
 	make -C fishy clean
 	make -C testserial clean
 	make -C vgatest clean
