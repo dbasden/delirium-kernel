@@ -9,7 +9,9 @@
 
 # Kernel load point in the ELF header, and also entry point
 #
-KERNSTART=0x100000
+#KERNSTART=0x100000
+KERNSTART=0x38000000
+
 
 # Compile in assertions
 #
@@ -47,8 +49,8 @@ STRIP=$(CROSSPREFIX)strip
 CFLAGS=-Wall -ffreestanding -Wsystem-headers -mpush-args -nostdlib -g
 BASEDIR=.
 INCLUDES=-nostdinc -isystem${BASEDIR}/include/
-#DEFAULTARCH=i386
-DEFAULTARCH=xen
+DEFAULTARCH=i386
+#DEFAULTARCH=xen
 
 #--------------------------------------------------------------------
 
