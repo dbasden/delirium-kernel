@@ -28,6 +28,13 @@ TODO:
 	  get a protection violation (BTW Using IO memory for temporary storage
 	  is JUST WRONG AL! (and might not be paged in correctly) )
 
+	  (Note, the carefulness we were doing in #PF to avoid not
+	   touching the stack may have been kinda irrelevant - see
+	   arch/i386/mem.S for more comments)
+	- clean up enable_paging disable_paging etc in arch/i386/mem.S
+	  to actually save and restore eax on the stack rather than
+	  blowing them away.
+
 	(FIXED) vgaprint isn't threadsafe. (wrapped in semaphore vga_print_s
 		which is great as long as interrupts are on. kpanic manually
 		increments vga_print_s before calling so the semaphore will
