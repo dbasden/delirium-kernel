@@ -20,3 +20,4 @@ getpages		kgetpages
 herdpages		kherdpages
 getpage			kgetpage
 freepage		kfreepage
+await			await

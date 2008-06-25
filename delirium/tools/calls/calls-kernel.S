@@ -13,7 +13,7 @@
 pfhook_base:
 	.long	0x7ffff000
 pfhook_end:
-	.long	0x7ffff058
+	.long	0x7ffff05c
 
 	.align 8
 pfhook_table:
@@ -24,8 +24,8 @@ pfhook_table:
 	.long	[get_thread_info]
 	.long	[splinter]
 	.long	[add_handler]
-	.long	[paging_remove_from_table]
-	.long	[paging_add_to_table]
+	.long	[paging_remove_from_dir]
+	.long	[paging_add_to_dir]
 	.long	[vgaprint]
 	.long	[get_new_soapbox]
 	.long	[get_soapbox_from_name]
@@ -39,3 +39,4 @@ pfhook_table:
 	.long	[kherdpages]
 	.long	[kgetpage]
 	.long	[kfreepage]
+	.long	[await]
