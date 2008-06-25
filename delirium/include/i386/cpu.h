@@ -6,6 +6,7 @@ typedef u_int32_t	Semaphore;
 /* We can force a context switch before the timer by calling INT 0x42 */
 #define YIELD_CONTEXT	asm(" int $0x42")
 #define KILL_CURRENT_THREAD	asm(" int $0x43");
+#define HALT_CPU	asm(" hlt")
 
 #define INIT_SEMAPHORE(_s)	_s = 1
 #define LOCKED_SEMAPHORE(_s)	((_s) <= 0)

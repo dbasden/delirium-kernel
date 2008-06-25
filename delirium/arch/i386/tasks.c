@@ -34,6 +34,14 @@ extern void do_context_switch();		// cpu.h
 
 size_t		running_thread_id;
 thread_t	threads[MAX_THREADS];
+size_t		global_context_switches;
+
+/*
+ * set the state of the current thread 
+ */
+void set_thread_state(thread_state_t new_state) {
+	threads[running_thread_id].state = new_state;
+}
 
 /*
  * contains the short term scheduler logic
@@ -45,6 +53,13 @@ static inline u_int32_t get_task_to_run() {
 	id = (running_thread_id+1) % MAX_THREADS;
 	while (id != running_thread_id  &&  (threads[id].state != running))
 		id = (id+1) % MAX_THREADS;
+
+	// Look for an idle thread
+	if (id == running_thread_id && threads[id].state != running) {
+		id = (running_thread_id+1) % MAX_THREADS;
+		while (id != running_thread_id  &&  (threads[id].state != idle))
+			id = (id+1) % MAX_THREADS;
+	}
 
 	return id;
 }
@@ -77,6 +92,7 @@ static inline void copy_current_thread(size_t outgoing_esp) {
 	// Setup other thread member variables
 	threads[new_thread_id].state = running;
 	threads[new_thread_id].refcount = 0;
+	threads[new_thread_id].context_switches = 0;
 	QUEUE_INIT(&(threads[new_thread_id].rants));
 }
 
@@ -102,6 +118,8 @@ u_int32_t get_next_switch(u_int32_t outgoing_esp) {
 	} else {
 
 		running_thread_id = get_task_to_run();
+		++global_context_switches;
+		++(threads[running_thread_id].context_switches);
 
 	}
 
@@ -114,6 +132,8 @@ u_int32_t get_next_switch(u_int32_t outgoing_esp) {
 u_int32_t kill_current_thread(u_int32_t outgoing_esp) {
 	size_t	brick_wall	= running_thread_id;
 	u_int32_t new_esp;
+
+	threads[brick_wall].state =leaving;
 
 	/* The outgoing esp isn't very useful to us at
 	 * this point. It's quite possible that it's
@@ -179,6 +199,9 @@ void setup_tasks() {
 		(u_int32_t) &init_tss,
 		sizeof(tss_t)
 	);
+
+	/* Global context switch counter */
+	global_context_switches = 0;
 
 	/* Initial thread is the current execution context; ID 0 */
 	running_thread_id = 0;
@@ -291,6 +314,7 @@ void yield() {
 
 /*
  * set the current thread to a listening state until there are rants queued for it
+ * and then yield context
  *
  * the listening state is advisory for the scheduler, and isn't mandatory, so
  * having a thread inadvertently put into a running state isn't going to break
@@ -315,6 +339,8 @@ void await() {
 
 	if (! QUEUE_ISEMPTY(&(threads[running_thread_id].rants))) 
 		*thread_state_p = running;
+	else
+		YIELD_CONTEXT;
 }
 
 /*
@@ -325,3 +351,4 @@ void wake_thread(size_t thread_id) {
 	if (*thread_state_p == running || *thread_state_p == listening)
 		*thread_state_p = running;
 }
+
