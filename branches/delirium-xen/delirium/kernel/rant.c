@@ -11,7 +11,10 @@
 #include "dlib/memherd.h"
 #include "dlib/queue.h"
 
+#if 0
 #include "i386/task.h"
+#endif
+#include "multitask.h"
 
 
 typedef void(*rant_handler_t)(message_t);
@@ -134,6 +137,7 @@ int rant(soapbox_id_t soapboxid, message_t message) {
 	message.sender = running_thread_id; 
 	message.destination = soapboxid;
 	queue_message(message);
+	wake_thread(soapboxes[SOAPBOX_INDEX(soapboxid)].supplicant.thread_id);
 
 	return soapboxid;
 }

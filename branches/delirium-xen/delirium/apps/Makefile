@@ -11,7 +11,7 @@ LDFLAGS=$(CFLAGS)
 
 APPOBJS=crt0.o calls-user.o
 APPS=eve/eve test/test.elf fishy/fishy life/life testserial/testserial life2/life2
-APPS+=vgatest/vgatest
+APPS+=vgatest/vgatest testfaults/testfaults
 
 default: appobjs libs apps
 

@@ -17,8 +17,15 @@
 
 
 
+/*
+ * running: can be switched to by the STS
+ * listening: ignored by the STS. will be set to running when any rants are sent to it.
+ * leaving: ignored by the STS. Thread is being killed, but cleanup isn't complete by the thread manager
+ * dead: ignored by the STS
+ * idle: idle thread. can be switched to by the STS iff no tasks are set to running
+ */
 typedef enum {
-	running, listening, dead
+	running, listening, leaving, dead, idle
 } thread_state_t;
 
 /*
@@ -102,9 +109,12 @@ typedef struct {
 
 	thread_cpustate_t cpu;
 	void *		ih_esp;
+
+	size_t		context_switches;
 } thread_t;
 
 extern thread_t threads[];
+extern size_t global_context_switches;
 
 #endif // ! ASM
 
