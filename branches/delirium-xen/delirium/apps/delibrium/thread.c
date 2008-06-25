@@ -17,6 +17,7 @@ void thread_ret() {
 	asm volatile ("	int $0x43");
 #endif
 	for (;;);
+	
 }
 
 /*
