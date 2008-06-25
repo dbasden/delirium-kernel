@@ -288,3 +288,40 @@ void exit_kthread() {
 void yield() {
 	YIELD_CONTEXT;
 }
+
+/*
+ * set the current thread to a listening state until there are rants queued for it
+ *
+ * the listening state is advisory for the scheduler, and isn't mandatory, so
+ * having a thread inadvertently put into a running state isn't going to break
+ * anything (although might be inefficient in some cases). having a thread 
+ * inadvertently be put in a listening state when there are rants waiting however 
+ * CAN cause deadlock, so we avoid this if at all possible
+ */
+void await() {
+	// We want to avoid deadlock due to a rant being queued after the await() call,
+	// but before we change the state to listening.
+	//
+	// To avoid this case, we set the state to listening, and then check to see if
+	// there are any rants queued. If there are, we roll back the state to running.
+	// If there aren't, any future rants arriving will wake the thread
+	// (assuming sending a rant will first 
+	
+	thread_state_t *thread_state_p = &(threads[running_thread_id].state);
+	if (! (*thread_state_p == running || *thread_state_p == listening))
+		return;
+
+	*thread_state_p = listening;
+
+	if (! QUEUE_ISEMPTY(&(threads[running_thread_id].rants))) 
+		*thread_state_p = running;
+}
+
+/*
+ * set a listening or running thread to a running state
+ */
+void wake_thread(size_t thread_id) {
+	thread_state_t *thread_state_p = &(threads[thread_id].state);
+	if (*thread_state_p == running || *thread_state_p == listening)
+		*thread_state_p = running;
+}
