@@ -14,8 +14,8 @@
 .global	get_thread_info
 .global	splinter
 .global	add_interrupt_handler
-.global	remove_from_pagetable
-.global	add_to_pagetable
+.global	remove_from_pagedir
+.global	add_to_pagedir
 .global	print
 .global	get_new_soapbox
 .global	get_soapbox_from_name
@@ -29,6 +29,7 @@
 .global	herdpages
 .global	getpage
 .global	freepage
+.global	await
 
 .set	mask_interrupt, 0x7ffff000
 .set	unmask_interrupt, 0x7ffff004
@@ -37,8 +38,8 @@
 .set	get_thread_info, 0x7ffff010
 .set	splinter, 0x7ffff014
 .set	add_interrupt_handler, 0x7ffff018
-.set	remove_from_pagetable, 0x7ffff01c
-.set	add_to_pagetable, 0x7ffff020
+.set	remove_from_pagedir, 0x7ffff01c
+.set	add_to_pagedir, 0x7ffff020
 .set	print, 0x7ffff024
 .set	get_new_soapbox, 0x7ffff028
 .set	get_soapbox_from_name, 0x7ffff02c
@@ -52,3 +53,4 @@
 .set	herdpages, 0x7ffff04c
 .set	getpage, 0x7ffff050
 .set	freepage, 0x7ffff054
+.set	await, 0x7ffff058

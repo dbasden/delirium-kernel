@@ -56,10 +56,9 @@ void elf_load(void *base) {
 			alloc_to = abase + (PAGE_SIZE * pages_needed) - 1;
 			getpages(pages_needed, pages);
 			for (i = 0; i < pages_needed; i++) {
-				add_to_page_dir(get_current_page_dir(), abase, pages[i]);
+				add_to_pagedir(get_current_page_dir(), abase, pages[i]);
 	       		        abase += PAGE_SIZE;
 		        }
-
 
 			memcpy(ph->virtual_addr, base+(ph->offset), 
 					ph->file_size);
