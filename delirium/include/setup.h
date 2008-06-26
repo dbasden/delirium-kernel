@@ -11,6 +11,11 @@
 void setup_memory();
 
 /*
+ * setup PC timer (8254)
+ */
+void setup_timer();
+
+/*
  * setup interrupt and exception handlers
  */
 void setup_interrupts();

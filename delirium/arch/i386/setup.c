@@ -11,6 +11,7 @@
 #include "i386/mem.h"
 #include "i386/interrupts.h"
 #include "i386/pic.h"
+#include "i386/io.h"
 
 
 extern interrupt_desc_t _idt_base;
@@ -47,6 +48,17 @@ void setup_memory() {
 	kdebug("calling install_gdt");
 	install_gdt();
 	kdebug("setup_memory exit");
+}
+
+// set the int 0 timer to trigger a bit more than every ~53ms 
+// pre: interrupts are disabled
+void setup_timer() {
+	// 1.193182 MHz input clock
+	// divide by 1193 (0x04a9) to get around 1000Hz
+	kdebug("setting int0 timer ");	
+	outb(0x43, 0x34); // 00110100b - chan 0, freq. divider, set lo/hi byte
+	outb(0x40, 0xa9); // Low byte of divider to chan 0 reload value
+	outb(0x40, 0x04); // High byte of divider to chan 0 reload value
 }
 
 void setup_interrupts() {
@@ -104,6 +116,7 @@ void setup_interrupts() {
 	kdebug("enabling interrupts");
 	asm volatile ("	STI");
 }
+
 #if 0
 _IVEC_0	"Divide by zero FAULT"
 _IVEC_1	"RESERVED IVEC 1"
