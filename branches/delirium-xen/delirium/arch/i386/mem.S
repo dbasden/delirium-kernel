@@ -107,15 +107,15 @@ chip_tax:
 	pushl	$(pf_message)
 	jmp	kpanic
 8:
-	//call	meditate
-	pushl	$(paging_on_msg)
-	call	vgaprint_cli
+	// Uncomment to warn that we are going to switch on paging
+	//pushl	$(paging_on_msg)
+	//call	vgaprint_cli
 
 	// Reenable paging. We have our super-happy-emergency-stack
 	// by this point, so 'call' should work
 	call	enable_paging
-	pushl	$(paging_on_works_msg)
-	call	vgaprint_cli
+	//pushl	$(paging_on_works_msg)
+	//call	vgaprint_cli
 
 	// We're still in the 'interrupt' context. If we jmp
 	// to the handler for kill_current_thread, it should just
