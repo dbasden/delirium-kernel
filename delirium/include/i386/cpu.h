@@ -1,7 +1,7 @@
 #ifndef __I386_CPU_H
 #define __I386_CPU_H
 
-typedef u_int32_t	Semaphore;
+typedef volatile u_int32_t	Semaphore;
 
 /* We can force a context switch before the timer by calling INT 0x42 */
 #define YIELD_CONTEXT	asm(" int $0x42")

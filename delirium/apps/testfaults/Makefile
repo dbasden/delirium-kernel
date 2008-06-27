@@ -9,6 +9,7 @@ CFLAGS+=-isystem../../include/ -I.. -I../lib
 LDFLAGS=-static -L ../lib
 
 APPOBJS=../delibrium/delibrium.o ../crt0.o ../calls-user.o
+LIBS=
 
 default: testfaults
 
@@ -16,5 +17,5 @@ clean:
 	rm *.o testfaults 2>/dev/null || true
 
 testfaults: testfaults.o
-	$(LD) $(LDFLAGS) $(APPOBJS) $^ -o $@
+	$(LD) $(LDFLAGS) $(APPOBJS) $^ $(LIBS) -o $@
 	$(GCC_EXEC_PREFIX)strip testfaults
