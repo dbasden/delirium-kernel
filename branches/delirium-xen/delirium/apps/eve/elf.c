@@ -105,11 +105,12 @@ void eve_elf_load(void *base) {
 				while (reloc_entries < reloc_entries_tail) {
 					if (reloc_entries->info == ELF_RELOCATE_RELATIVE) {
 						void * rel = reloc_entries->offset;
-						u_int32_t * ptr = ( (void *) dyn_base + (u_int32_t) rel );
+						u_int32_t * ptr = ( (void *) dyn_base + (int32_t) rel );
 						#ifdef EVE_ELF_DEBUG
-						printf("  | Relocating item at offset 0x%x (0x%x abs) \t0x%x -> 0x%x\n", rel, ptr, *ptr, *ptr + dyn_base);
+						printf("(@ offset 0x%x(0x%x abs) 0x%x -> 0x%x) ", rel, ptr, *ptr, *ptr + dyn_base);
 						#endif
-						*ptr = (u_int32_t) dyn_base + *ptr;
+						//*ptr = (u_int32_t) dyn_base + *ptr;
+						*ptr = (int32_t) dyn_base + *ptr;
 					}
 					else {
 					#ifdef EVE_ELF_DEBUG

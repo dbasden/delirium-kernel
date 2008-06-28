@@ -4,18 +4,19 @@ CC=$(GCC_EXEC_PREFIX)gcc
 LD=$(GCC_EXEC_PREFIX)ld
 AS=$(GCC_EXEC_PREFIX)as
 
-CFLAGS=-Wall -g -DARCH_i386 -DENABLE_ASSERTS -ffreestanding -nostdinc
+CFLAGS=-Wall -g -DARCH_i386 -DENABLE_ASSERTS -ffreestanding -nostdinc -fpie -pie
 CFLAGS+=-isystem../../include/ -I.. -I../lib
-LDFLAGS=-static -L ../lib
+LDFLAGS=-static -L ../lib -pie
 
 APPOBJS=../delibrium/delibrium.o ../crt0.o ../calls-user.o
-LIBS=
+LIBS=../../../ip/slip.o
+CFLAGS+=-I../../../ip/
 
-default: testfaults
+default: slip
 
 clean:
-	rm *.o testfaults 2>/dev/null || true
+	rm *.o slip 2>/dev/null || true
 
-testfaults: testfaults.o
+slip: slip.o
 	$(LD) $(LDFLAGS) $(APPOBJS) $^ $(LIBS) -o $@
-	#$(GCC_EXEC_PREFIX)strip testfaults
+	#$(GCC_EXEC_PREFIX)strip slip
