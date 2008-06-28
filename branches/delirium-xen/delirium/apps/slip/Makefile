@@ -8,7 +8,7 @@ CFLAGS=-Wall -g -DARCH_i386 -DENABLE_ASSERTS -ffreestanding -nostdinc -fpie -pie
 CFLAGS+=-isystem../../include/ -I.. -I../lib
 LDFLAGS=-static -L ../lib -pie
 
-APPOBJS=../delibrium/delibrium.o ../crt0.o ../calls-user.o
+APPOBJS=../delibrium/delibrium.o ../crt0.o -R ../calls-user.o
 LIBS=../../../ip/slip.o
 CFLAGS+=-I../../../ip/
 

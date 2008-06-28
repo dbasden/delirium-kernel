@@ -181,7 +181,9 @@ void eve_elf_load(void *base) {
 	#ifdef EVE_ELF_DEBUG
 		printf("eve_elf_load: splintering to entrypoint 0x%x\n", entrypoint);
 	#endif
-	splinter(entrypoint, tempstack+PAGE_SIZE);
+	tempstack += PAGE_SIZE;
+	tempstack -= sizeof(void *);
+	splinter(entrypoint, tempstack);
 	yield();
 	freepage(tempstack);
 }

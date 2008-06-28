@@ -843,12 +843,12 @@ void handle_exception(int exceptionVector)
            * trace exception (9), nmi (31), jmp to
            * the old exception handler as if this code never ran.
            */
-#if 0
 	  /* Don't really think we need this, except maybe for protection
 	     exceptions.  */
                   /*
                    * invoke the previous handler.
                    */
+#if 0
                   if (oldExceptionHook)
                       (*oldExceptionHook) (frame->exceptionVector);
                   newPC = registers[ PC ];    /* pc may have changed  */
@@ -860,10 +860,10 @@ void handle_exception(int exceptionVector)
 
       /* kill the program */
       case 'k' :  /* do nothing */
-#if 0
 	/* Huh? This doesn't look like "nothing".
 	   m68k-stub.c and sparc-stub.c don't have it.  */
 		BREAKPOINT();
+#if 0
 #endif
                 break;
       } /* switch */
