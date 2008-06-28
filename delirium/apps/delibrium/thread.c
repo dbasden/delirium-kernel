@@ -9,14 +9,18 @@
  */
 void thread_ret() {
 	while (get_thread_info().refcount) {
+		await();
 		believe();
-		yield();
+		//yield();
 	}
 
 #ifdef ARCH_i386 
 	asm volatile ("	int $0x43");
 #endif
-	for (;;);
+#ifdef ARCH_i386 
+	for (;;) asm volatile (" hlt");
+#endif
+	for (;;) ;
 	
 }
 
