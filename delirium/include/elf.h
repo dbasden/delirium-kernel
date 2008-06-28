@@ -68,4 +68,35 @@ typedef struct {
 #define ELF_GROUP	256
 #define ELF_TLS		512
 
+typedef struct  {
+	u_int32_t	tag;
+	union {
+		u_int32_t	val;
+		void *		ptr;
+	} dyn_u; 
+} elf_dynamic_header_t;
+
+/*
+ * some tags that can be in the dynamic section 
+ */
+
+
+#define ELF_DT_NULL	0
+/* ... */
+#define ELF_DT_REL	17
+#define ELF_DT_RELSZ	18
+#define ELF_DT_RELENT	19
+
+typedef struct {
+	void *		offset;
+	u_int32_t	info;
+} elf_relocate_entry_t;
+
+/*
+ * Some of the info values in a relocation entry 
+ */
+#define ELF_RELOCATE_NONE	0
+/* ... */
+#define ELF_RELOCATE_RELATIVE	8
+
 #endif // __ELF_H

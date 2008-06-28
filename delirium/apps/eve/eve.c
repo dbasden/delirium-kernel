@@ -29,7 +29,6 @@ void dream() {
 	// TODO: Make this the default behaviour
 	for (;;) {
 		believe();
-		//yield();
 		await();
 	}
 }

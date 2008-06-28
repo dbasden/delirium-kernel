@@ -9,7 +9,7 @@
 #define HELP	"? date help moof\n"
 
 
-extern void elf_load(void *elf_image);
+extern void eve_elf_load(void *elf_image);
 
 void prompt() { print(PROMPT); }
 
@@ -51,7 +51,7 @@ static void do_exec(char *name) {
 		return;
 	}
 	printf("Found %s at 0x%8x\n", rte->name, rte->start);
-	elf_load(rte->start);
+	eve_elf_load(rte->start);
 }
 
 static void break_tests() {

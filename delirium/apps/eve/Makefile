@@ -13,4 +13,4 @@ clean:
 
 eve: ../crt0.o ../calls-user.o ../delibrium/delibrium.o readline.o dsh.o elf.o eve.o
 	$(LD) $(LDFLAGS) $^  -o $@
-	$(GCC_EXEC_PREFIX)strip eve
+	#$(GCC_EXEC_PREFIX)strip eve
