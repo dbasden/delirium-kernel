@@ -5,7 +5,7 @@ CC=$(GCC_EXEC_PREFIX)gcc
 AR=$(GCC_EXEC_PREFIX)ar
 LD=$(GCC_EXEC_PREFIX)ld
 CFLAGS=-Wall -ffreestanding -Wsystem-headers -nostdlib -g -DARCH_i386 -DENABLE_ASSERTS -nostdinc 
-CFLAGS+=-isystem../include -static
+CFLAGS+=-isystem../include -static -mpush-args
 ASFLAGS=$(CFLAGS)
 LDFLAGS=$(CFLAGS)
 

@@ -2,7 +2,7 @@
 GCC_EXEC_PREFIX=
 CC=$(GCC_EXEC_PREFIX)gcc
 LD=$(GCC_EXEC_PREFIX)ld
-CFLAGS=-Wall -g -isystem../../include/ -I.. -fno-builtin -O2
+CFLAGS=-Wall -g -isystem../../include/ -I.. -fno-builtin -O2 -mpush-args
 
 default: fishy
 
