@@ -28,6 +28,7 @@
 static Semaphore	INIT_SEMAPHORE(splinter_sem);
 		static void *		sem_locked_splinter_to;	// Only use when holding semaphore
 		static void *		sem_locked_splinter_sp;	// Only use when holding semaphore
+static Semaphore	INIT_SEMAPHORE(execute_splinter_sem);   // Only use once above two are set
 
 
 extern void do_context_switch();		// cpu.h
@@ -108,13 +109,13 @@ u_int32_t get_next_switch(u_int32_t outgoing_esp) {
 			sizeof(thread_cpustate_t));
 	threads[running_thread_id].ih_esp = (void *) outgoing_esp;
 
-	if (LOCKED_SEMAPHORE(splinter_sem)) {
+	if (LOCKED_SEMAPHORE(execute_splinter_sem)) {
 		/*
 		 * Create a new thread from current execution context
 		 * (splinter)
 		 */
 		copy_current_thread(outgoing_esp);
-		RELEASE_SEMAPHORE(splinter_sem);  // Release lock
+		RELEASE_SEMAPHORE(execute_splinter_sem);  // Release semaphore once done
 	} else {
 
 		running_thread_id = get_task_to_run();
@@ -244,19 +245,28 @@ void splinter(void *taskentry, void *newsp) {
 	 * all this is setup.
 	 */
 
-	SPIN_WAIT_SEMAPHORE(splinter_sem); // Get lock
+	SPIN_WAIT_SEMAPHORE(splinter_sem); // Get lock on splintering
 
 	sem_locked_splinter_to = taskentry;
 	sem_locked_splinter_sp = newsp;
 
-	YIELD_CONTEXT;	/*
+	SPIN_WAIT_SEMAPHORE(execute_splinter_sem); // Signal STS that above two vars are set
+
+			/*
 			 * context switch handler will call short term scheduler
 			 * (get_next_switch), where there are hooks for the rest
-			 * of the splinter
+			 * of the splinter.
+			 *
+			 * Below we explicitly invoke the STS to make sure this
+			 * will happen, but we may have already hit the STS from a
+			 * timer interrupt or other interrupt
 			 */
+	YIELD_CONTEXT;
 
-	// We DONT release the semaphore here. It will be released when our 
-	// splinter request is handled!
+	// We DONT release execute_splinter_sem semaphore here. It will be released when our 
+	// splinter request is handled! We do however release splinter_sem
+	RELEASE_SEMAPHORE(splinter_sem); 
+	
 }
 
 /*
