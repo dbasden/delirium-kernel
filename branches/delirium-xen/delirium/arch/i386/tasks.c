@@ -65,9 +65,11 @@ static inline u_int32_t get_task_to_run() {
 	return id;
 }
 
-/* called only from within context switch */
-static inline void copy_current_thread(size_t outgoing_esp) {
-	int new_thread_id;	
+/* called only from within a context switch 
+ * returns the ID of the new thread
+ */
+static inline size_t copy_current_thread(size_t outgoing_esp) {
+	size_t new_thread_id;	
 	
 	// Find a free thread id
 	new_thread_id = (running_thread_id+1) % MAX_THREADS;
@@ -95,6 +97,8 @@ static inline void copy_current_thread(size_t outgoing_esp) {
 	threads[new_thread_id].refcount = 0;
 	threads[new_thread_id].context_switches = 0;
 	QUEUE_INIT(&(threads[new_thread_id].rants));
+
+	return new_thread_id;
 }
 
 /*
@@ -112,17 +116,15 @@ u_int32_t get_next_switch(u_int32_t outgoing_esp) {
 	if (LOCKED_SEMAPHORE(execute_splinter_sem)) {
 		/*
 		 * Create a new thread from current execution context
-		 * (splinter)
+		 * (splinter) and change context to that thread
 		 */
-		copy_current_thread(outgoing_esp);
+		running_thread_id  = copy_current_thread(outgoing_esp);
 		RELEASE_SEMAPHORE(execute_splinter_sem);  // Release semaphore once done
 	} else {
-
 		running_thread_id = get_task_to_run();
-		++global_context_switches;
-		++(threads[running_thread_id].context_switches);
-
 	}
+	++global_context_switches;
+	++(threads[running_thread_id].context_switches);
 
 	Assert(running_thread_id < MAX_THREADS);
 

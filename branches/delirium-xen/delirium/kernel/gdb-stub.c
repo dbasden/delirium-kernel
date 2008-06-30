@@ -116,7 +116,6 @@ static inline int strcpy(char *dest, char *src) {
  *
  ****************************************************************************/
 
-
 #if 0
 #include <stdio.h>
 #include <string.h>
@@ -173,7 +172,7 @@ static int* stackPtr = &remcomStack[STACKSIZE/sizeof(int) - 1];
  * oldExceptionHook is a function to invoke in this case.
  */
 
-static ExceptionHook oldExceptionHook;
+//static ExceptionHook oldExceptionHook;
 
 /***************************  ASSEMBLY CODE MACROS *************************/
 /* 									   */
@@ -878,7 +877,7 @@ void handle_exception(int exceptionVector)
 void set_debug_traps()
 {
 extern void remcomHandler();
-int exception;
+//int exception;
 
   stackPtr  = &remcomStack[STACKSIZE/sizeof(int) - 1];
 
@@ -898,7 +897,7 @@ int exception;
   exceptionHandler (14, _catchException14);
   exceptionHandler (16, _catchException16);
 
-#if 0
+#if WTF
   if (exceptionHook != remcomHandler)
   {
       oldExceptionHook = exceptionHook;
@@ -923,15 +922,11 @@ int exception;
 void breakpoint()
 {
   if (initialized)
-#if 0
-    handle_exception(3);
-#else
     BREAKPOINT();
-#endif
-  waitabit();
+  //waitabit();
 }
 
-int waitlimit = 1000000;
+int waitlimit = 10000;
 
 #if 0
 void

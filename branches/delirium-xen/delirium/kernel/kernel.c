@@ -182,8 +182,10 @@ void cmain(u_int32_t multi_magic, void *multi_addr) {
 	setup_memory();
 
 
+#ifndef RAPID_TIMER
 	kprint(", timer");
 	setup_timer();
+#endif
 
 	kprint(", interrupts");
 	setup_interrupts();
