@@ -1,5 +1,8 @@
 #define ASM	1
 
+#ifdef ENABLE_GDB_STUB
+#endif
+
 /* mem.S - set up delirium memory management */
 #include <delirium.h>
 #include "i386/task.h"
@@ -58,19 +61,27 @@ handle_pf:
 	// Page Fault handler. Cannot assume:
 	//	-- Correct segments
 	//	-- Existence of stack
+	// (note: after looking, this is only the case with task gates.
+	//        we can't really assume the above either, but for now
+	//        let's assume that a simple #PF will leave at least some
+	//        of this intact. Of course if the stack is faulting, we're
+	//        going to quickly doublefault, but the #PF silicon has
+	//	  done that already by this point :-)
 
 	// Check to see if a dummy address is being called. If it is,
 	// remap the call to the real function address.
-	//
-	movl 	%cr2, %ecx
-	cmpl	pfhook_base, %ecx
+
+	// Can't cmpl from cr2, but eax is our return register and can be used
+	movl 	%cr2, %eax
+	cmpl	pfhook_base, %eax
 	jb	9f
-	cmpl	pfhook_end, %ecx
+	cmpl	pfhook_end, %eax
 	ja	9f
-	subl	pfhook_base, %ecx
-	addl	$(pfhook_table), %ecx
+	subl	pfhook_base, %eax
+	addl	$(pfhook_table), %eax
 	addl	$0x4, %esp
-	movl	(%ecx), %eax
+	// This might not work...
+	movl	(%eax), %eax
 	movl	%eax, (%esp)
 	iret
 9:
@@ -80,22 +91,20 @@ chip_tax:
 	// Write PF on the  screen
 	movl	$0x70467050, 0xb8000+3836
 	// Can't call disable paging if the stack is fubared
-	// Do it manually
-	//call	disable_paging
+	// Although it's probably fine, do it manually
 	movl	%cr0, %eax
 	btr	$31, %eax
 	movl	%eax, %cr0
 	// Save the stack pointer, and use the emergency stack
-	movl	%ebp, %eax
+	movl	%esp, %eax
 	movl	%esp, %ebp
+	addl	$4, %ebp
 	movl	$(emergency_stack + 0x1000), %esp
-	pushl	%eax	// Old EBP
-	pushl	%ebp	// Old EAX
-	movl	%esp, %ebp
 	// Print a handy error message
 	pushl	running_thread_id
-	pushl	12(%ebp)
-	pushl	%ecx
+	pushl	4(%eax)	// Faulting address
+	movl	%cr2, %eax
+	pushl	%eax	// cr2 should still have the faulted address
 	pushl	$(pf_message)
 	movl	$1, vga_print_s
 	call 	kprintf

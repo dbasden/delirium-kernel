@@ -184,6 +184,9 @@ void eve_elf_load(void *base) {
 	tempstack += PAGE_SIZE;
 	tempstack -= sizeof(void *);
 	splinter(entrypoint, tempstack);
+	#if 0
+	/*** Ran into problems doing this where the tempstack was freed before we got to change the stack. ***/
 	yield();
 	freepage(tempstack);
+	#endif
 }
