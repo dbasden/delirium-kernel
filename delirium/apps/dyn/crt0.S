@@ -6,10 +6,12 @@
 	.globl	_start, exit, end
 
 _start:
+#if 0
 	call getpage
 	addl $4096, %eax
 	mov %eax, %esp
 	mov %esp, %ebp
+#endif
 	call dream
 end:
 exit:

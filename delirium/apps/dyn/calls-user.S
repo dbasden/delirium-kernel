@@ -40,7 +40,9 @@
 .set	add_interrupt_handler, 0x7ffff018
 .set	remove_from_pagedir, 0x7ffff01c
 .set	add_to_pagedir, 0x7ffff020
-.set	print, 0x7ffff024
+//.set	print, 0x7ffff024
+print:	
+	jmp 0x7ffff024
 .set	get_new_soapbox, 0x7ffff028
 .set	get_soapbox_from_name, 0x7ffff02c
 .set	believe, 0x7ffff030

@@ -12,7 +12,10 @@
 #define ELF_PS_WRITE 0x2
 #define ELF_PS_EXEC 0x1
 
+#if 0
 #define DYNAMIC_EXEC_BASE	(void *) 0x81000000
+#endif
+#define DYNAMIC_EXEC_BASE	(void *) 0x04000000
 
 #define EVE_ELF_DEBUG
 
@@ -65,6 +68,16 @@ void eve_elf_load(void *base) {
 		if (ph->segment_type == ELF_PROG_SEG_DYNAMIC) {
 			#ifdef EVE_ELF_DEBUG
 			print("Found dynamic section\n");
+
+			/* Show what we are loading if debugging */
+			if (ph->flags & ELF_PS_READ) print("R");
+			if (ph->flags & ELF_PS_WRITE) print("W");
+			if (ph->flags & ELF_PS_EXEC) print("X");
+			printf("D| 0x%x(0x%x), mem 0x%x, dsk 0x%x, aln 0x%x\n",
+				ph->phys_addr, ph->virtual_addr, ph->mem_size, 
+				ph->file_size, ph->alignment);
+			if (dynamic) printf("  `- virt 0x%x -> 0x%x\n", ph->virtual_addr, dvirt);
+
 			#endif
 			if (! dynamic) {
 				print("Strange... Found DYNAMIC section in non dynamic executable. Ignoring.\n");
@@ -87,8 +100,10 @@ void eve_elf_load(void *base) {
 					  case ELF_DT_REL:
 						#ifdef EVE_ELF_DEBUG
 						printf(" D| REL table at offset 0x%x (0x%x absolute)\n", dynhead->dyn_u.val , base + dynhead->dyn_u.val);
+						printf("OR! REL table at offset 0x%x (0x%x absolute)\n", dynhead->dyn_u.val , dyn_base+ dynhead->dyn_u.val);
 						#endif
-						reloc_entries = base + dynhead->dyn_u.val;
+						//reloc_entries = base + dynhead->dyn_u.val;
+						reloc_entries = dyn_base + dynhead->dyn_u.val;
 						break;
 					  case ELF_DT_RELSZ:
 						reloc_table_size = dynhead->dyn_u.val;
@@ -107,10 +122,15 @@ void eve_elf_load(void *base) {
 						void * rel = reloc_entries->offset;
 						u_int32_t * ptr = ( (void *) dyn_base + (int32_t) rel );
 						#ifdef EVE_ELF_DEBUG
-						printf("(@ offset 0x%x(0x%x abs) 0x%x -> 0x%x) ", rel, ptr, *ptr, *ptr + dyn_base);
+						//printf("(@0x%x>0x%x 0x%x>0x%x) ", rel, dyn_base+(int32_t)rel, *ptr, *ptr + (int32_t)dyn_base);
+						printf("(@0x%x>0x%x 0x%x>0x%x) ",
+							reloc_entries->offset, dyn_base + (int32_t) reloc_entries->offset,
+							*(int32_t *)(dyn_base + (int32_t)reloc_entries->offset), 
+							*(int32_t *)(dyn_base + (int32_t)reloc_entries->offset) + (int32_t)dyn_base);
 						#endif
-						//*ptr = (u_int32_t) dyn_base + *ptr;
-						*ptr = (int32_t) dyn_base + *ptr;
+						//*ptr = (int32_t) dyn_base + *ptr;
+						reloc_entries->offset = dyn_base + (int32_t) reloc_entries->offset;
+						*(int32_t *)(reloc_entries->offset) += (int32_t)dyn_base;
 					}
 					else {
 					#ifdef EVE_ELF_DEBUG
