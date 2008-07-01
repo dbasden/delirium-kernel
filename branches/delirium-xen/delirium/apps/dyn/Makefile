@@ -4,13 +4,15 @@ CC=$(GCC_EXEC_PREFIX)gcc
 LD=$(GCC_EXEC_PREFIX)ld
 AS=$(GCC_EXEC_PREFIX)as
 
-CFLAGS=-Wall -g -DARCH_i386 -DENABLE_ASSERTS -ffreestanding -nostdinc -fpie -pie
+#CFLAGS=-Wall -g -DARCH_i386 -DENABLE_ASSERTS -ffreestanding -nostdinc -fpie -pie
+CFLAGS=-Wall -g -DARCH_i386 -DENABLE_ASSERTS -ffreestanding -nostdinc 
 CFLAGS+=-isystem../../include/ -I.. -I../lib -mpush-args
-ASFLAGS=$(CFLAGS)
+ASFLAGS= $(CFLAGS)
 LDFLAGS=-static -L ../lib -pie
 
 APPOBJS=calls-user.o crt0.o
 LIBS=
+
 
 default: crt0.o calls-user.o dyn
 
