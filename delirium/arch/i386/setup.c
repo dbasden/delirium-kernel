@@ -43,6 +43,34 @@ void add_handler(u_int16_t offset, void (*handler)(void)) {
 }
 
 
+/* wrap a C interrupt handler and install it in the IDT
+ * the interrupt is then unmasked.
+ *
+ * for userspace calls - calls add_c_isr 
+ * (which is a macro that needs our symbol table)
+ *
+ * Users can just write their own ASM interrupt handlers if they really
+ * want, but it's probably more stable to have all the ISR bugs in one place.
+ */
+void add_c_interrupt_handler(u_int8_t hw_interrupt, void (*handler)(void)) {
+	/* really don't want to have this firing off while we are
+	 * changing the ISR
+	 */
+	pic_mask_interrupt(hw_interrupt);
+
+	add_c_isr(hw_interrupt, handler);
+	pic_unmask_interrupt(hw_interrupt);
+}
+
+/* 
+ * mask the interrupt and replace the interrupt handler 
+ * with the default one
+ */
+void remove_interrupt_handler(u_int8_t hw_interrupt) {
+	pic_mask_interrupt(hw_interrupt);
+	add_handler(hw_interrupt, &default_interrupt_handler);
+}
+
 void setup_memory() {
 	kdebug("setup_memory entry");
 	kdebug("calling install_gdt");

@@ -1,6 +1,6 @@
 #include <delirium.h>
-#include <i386/io.h>
 #include <paging.h>
+#include <i386/io.h>
 #include "delibrium/delibrium.h"
 
 #include "vga.h"

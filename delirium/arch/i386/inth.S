@@ -158,6 +158,27 @@ default_interrupt_handler:
 	HW_Int_Hook 14
 	HW_Int_Hook 15
 
+	/* table of pointers to the C ISR wrapper hooks */
+	.globl c_isr_wrapper_table
+        .align 8
+c_isr_wrapper_table:
+	.long	[isr_hook_0]
+	.long	[isr_hook_1]
+	.long	[isr_hook_2]
+	.long	[isr_hook_3]
+	.long	[isr_hook_4]
+	.long	[isr_hook_5]
+	.long	[isr_hook_6]
+	.long	[isr_hook_7]
+	.long	[isr_hook_8]
+	.long	[isr_hook_9]
+	.long	[isr_hook_10]
+	.long	[isr_hook_11]
+	.long	[isr_hook_12]
+	.long	[isr_hook_13]
+	.long	[isr_hook_14]
+	.long	[isr_hook_15]
+
 	//---------------------------
 	// When the bad things happen
 	//---------------------------
@@ -187,6 +208,7 @@ fault_handler:
 	jmp 0b
 	//jmp	meditate
 	int	$0x43
+
 
 	.data
 	.globl C_isr_p

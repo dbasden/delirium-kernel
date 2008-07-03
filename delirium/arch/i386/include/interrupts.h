@@ -48,18 +48,30 @@ void abort_handler();
 void inth_timer();
 void inth_kill_current_thread();
 
+typedef void(*interrupt_handler_t)(void);
+
 /* setup.c */
 void add_handler(u_int16_t offset, void (*handler)(void));
 
 /* black magic */
 
+#if 0
 #define __add_c_isr(__hwint, __handler)\
 	        ({extern void isr_hook_ ## __hwint();\
 	          (&C_isr_p)[(__hwint)] = (void *)(__handler);\
 	          add_handler(INTR_BASE+(__hwint), &isr_hook_ ## __hwint);})
 #define add_c_isr(__hwint, __handler) __add_c_isr(__hwint, __handler)
+#endif
+
+#define __add_c_isr(__hwint, __handler)\
+                ({extern void isr_hook_ ## __hwint();\
+                  (&C_isr_p)[(__hwint)] = (void *)(__handler);\
+                  add_handler(INTR_BASE+(__hwint), c_isr_wrapper_table[__hwint]);})
+#define add_c_isr(__hwint, __handler) __add_c_isr(__hwint, __handler)
 
 extern	void **C_isr_p;
+extern interrupt_handler_t c_isr_wrapper_table[];
+
 
 #endif	/* ifndef ASM */
 
