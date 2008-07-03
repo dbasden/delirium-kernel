@@ -15,6 +15,7 @@
  * no reason not to convert between the two.
  */
 
+#ifdef __FUTURE__
 /*
  * Create new linear, 
  */
@@ -55,4 +56,6 @@ void * linear_getwp(linear_t l, size_t max) {
 	}
 	return l->q.cq + l->q.tail;
 }
+
+#endif /* __FUTURE__ */
 

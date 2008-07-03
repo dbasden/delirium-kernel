@@ -4,9 +4,9 @@ CC=$(GCC_EXEC_PREFIX)gcc
 LD=$(GCC_EXEC_PREFIX)ld
 AS=$(GCC_EXEC_PREFIX)as
 
-CFLAGS=-Wall -g -DARCH_i386 -DENABLE_ASSERTS -ffreestanding -nostdinc -fpie -pie
+CFLAGS=-Wall -g -DARCH_i386 -DENABLE_ASSERTS -ffreestanding -nostdinc
 CFLAGS+=-isystem../../include/ -I.. -I../lib -mpush-args
-LDFLAGS=-static -L ../lib -pie
+LDFLAGS=-static -L ../lib -Ttext 0x65020000
 
 APPOBJS=../delibrium/delibrium.o ../crt0.o -R ../calls-user.o
 LIBS=../../../ip/slip.o

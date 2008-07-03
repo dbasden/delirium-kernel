@@ -10,32 +10,34 @@ typedef enum message_type message_type_t;
 /*
  * Message definitions
  */
-#if 0
-struct _gestalt {
-	void *		first_page;
-	size_t		pages;
-};
-typedef struct _gestalt * gestalt_t;
-#endif
 
-#if 0
-typedef struct _gestalt * gestalt_t;
+/* gestalt is a pointer to memory length octets long.
+ * It is the responsibility of the receiver to free the memory (fear)
+ * It can be assumed that gestalt is a pointer to sequentially allocated
+ * pages, and the pages can be returned to the pager
+ *
+ * TODO: Consider copy-on-write to make this easier. Or indeed something
+ *       actually sane (which this isn't looking like right now)
+ *
+ */
+typedef struct {
+	void *		gestalt;
+	u_int32_t	length;
+} gestalt_t;
 
-struct _signal {
-	size_t		widget;
-};
-typedef struct _signal * signal_t;
-#endif
+/*
+ * Simplest message type -- Just an integer
+ */
+typedef u_int64_t signal_t;
 
-typedef void * gestalt_t;
-typedef u_int32_t signal_t;
 
-struct _linear {
-	void *		page;
-	struct cbQueue	q;
-};
-typedef struct _linear * linear_t;
-
+/* 
+ * Basically a ring buffer
+ */
+typedef struct {
+	void *			page;
+	struct cbQueue *	q;
+} linear_t;
 
 /*
  * A 'Generic' to wrap the messages inside of
@@ -47,7 +49,7 @@ struct _message {
 	size_t		sender;
 	size_t		destination;
 	union {
-		gestalt_t gestault;
+		gestalt_t gestalt;
 		linear_t linear;
 		signal_t signal;
 	} m;
