@@ -6,6 +6,6 @@
 #define SLIP_ESC_END	220
 #define SLIP_ESC_ESC	221
 
-void slip_init(u_int16_t base_port, size_t speed);
+void slip_init(u_int16_t base_port, u_int8_t hw_int, size_t speed);
 
 #endif

@@ -2,6 +2,7 @@
 #include <ipc.h>
 #include <soapbox.h>
 #include <rant.h>
+#include <i386/interrupts.h>
 
 #include "delibrium/delibrium.h"
 #include "slip.h"
@@ -69,64 +70,65 @@ void serial_listener(message_t msg) {
 	} 
 }
 
-void slip_serial_rx_thread() {
-	// This be serial thread.
-	soapbox_id_t serial_sb;
-	char *frame;
-	size_t framesize;
-	int escaped = 0;
-	int sendframe = 0;
+char volatile *slip_inbound_frame;
+volatile size_t slip_inbound_framesize;
+volatile int slip_inbound_escaped;
+soapbox_id_t serial_inbound_sb;
 
-	frame = getpage();
-	framesize = 0;
-	
+void slip_on_receive_interrupt() {
+	char inchar;
+	int sendframe = 0;
+	message_t msg;
+
+	inchar = read_serial(serial_base);
+
+	#ifdef SLIP_DEBUG
+	printf("[slip] slip_on_receive_interrupt: read 0x%2x\n", inchar);
+	#endif
+	switch (inchar) {
+		case SLIP_END:
+			sendframe = 1;
+			break;
+		case SLIP_ESC:
+			slip_inbound_escaped = 1;
+			break;
+		case SLIP_ESC_ESC:
+			if (slip_inbound_escaped) inchar = SLIP_ESC;
+		case SLIP_ESC_END:
+			if (slip_inbound_escaped) inchar = SLIP_END;
+		default:
+			slip_inbound_escaped = 0;
+			slip_inbound_frame[slip_inbound_framesize++] = inchar;
+	}
+
+	if (slip_inbound_framesize == PAGE_SIZE) 
+		sendframe = 1;
+
+	if (sendframe) {
+		msg.type = gestalt;
+		msg.m.gestalt.length = slip_inbound_framesize;
+		msg.m.gestalt.gestalt = (void *)slip_inbound_frame;
+		rant(serial_inbound_sb, msg);
+
+		slip_inbound_framesize = 0;
+		slip_inbound_frame = getpage();
+	}
+}
+
+void slip_setup_inth(u_int8_t hw_int) {
+	// This be serial thread.
+	slip_inbound_escaped = 0;
+	slip_inbound_framesize = 0;
+	slip_inbound_frame = getpage();
+
 	// TODO: stop hardcoding the serial port number
-	if (!(serial_sb = get_new_soapbox("/hardware/serial/0"))) {
+	if (!(serial_inbound_sb = get_new_soapbox("/hardware/serial/0"))) {
 		print("slip_serial_rx_thread: /hardware/serial/0 already registered");
 		return;
 	}
-
-	for (;;) {
-		char inchar;
-		message_t msg;
-
-		inchar = read_serial(serial_base);
-
-		#ifdef SLIP_DEBUG
-		printf("[slip] slip_serial_rx_thread: read 0x%2x\n", inchar);
-		#endif
-		
-		switch (inchar) {
-			case SLIP_END:
-				sendframe = 1;
-				break;
-			case SLIP_ESC:
-				escaped = 1;
-				break;
-			case SLIP_ESC_ESC:
-				if (escaped) inchar = SLIP_ESC;
-			case SLIP_ESC_END:
-				if (escaped) inchar = SLIP_END;
-			default:
-				escaped = false;
-				frame[framesize++] = inchar;
-		}
-
-		if (framesize == PAGE_SIZE) 
-			sendframe = true;
-
-		if (sendframe) {
-			msg.type = gestalt;
-			msg.m.gestalt.length = framesize ;
-			msg.m.gestalt.gestalt = frame;
-			rant(serial_sb, msg);
-
-			sendframe = false;
-			framesize = 0;
-			frame = getpage();
-		}
-	}
+	add_c_interrupt_handler(hw_int, slip_on_receive_interrupt);
 }
+
 
 void slip_start_interface() {
 	soapbox_id_t default_sb;
@@ -160,9 +162,10 @@ void slip_start_interface() {
 		supplicate(default_sb, datalink_listener);
 }
 
-void slip_init(u_int16_t base_port, size_t speed) {
+void slip_init(u_int16_t base_port, u_int8_t hw_int, size_t speed) {
 	serial_base = base_port;
 	init_serial(base_port, speed);
-	new_thread(slip_serial_rx_thread);
+	slip_setup_inth(hw_int);
 	new_thread(slip_start_interface);
+
 }
