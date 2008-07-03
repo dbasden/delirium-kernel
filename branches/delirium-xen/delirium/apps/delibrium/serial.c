@@ -25,7 +25,7 @@ void init_serial(u_int16_t baseport, size_t speed) {
 inline char read_serial(u_int16_t baseport) {
 	char c;
 
-	do { c = inb(baseport + 5); } while ((c & 1) == 0);
+	do { yield(); c = inb(baseport + 5); } while ((c & 1) == 0);
 	c = inb(baseport);
 	return c;
 }
