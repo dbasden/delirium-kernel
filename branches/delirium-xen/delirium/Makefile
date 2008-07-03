@@ -105,6 +105,7 @@ gdb:
 	gdb ./kern-i386 :1234
 
 dep:
-	makedepend -f Makefile.depends -- ${CFLAGS} -I./include -I./include/* -I./include/*/* -- `find . | egrep '\.[cSh]' | grep -v '\.svn'`
+	makedepend -f Makefile.depends -- ${CFLAGS} -I./include -I./include/* -I./include/*/* -I./apps/* -I./apps/*/* -- `find . | egrep '\.[cSh]' | grep -v '\.svn' | grep -v ramtreemaker | grep -v dlib/test_`
 
 include Makefile.depends
+

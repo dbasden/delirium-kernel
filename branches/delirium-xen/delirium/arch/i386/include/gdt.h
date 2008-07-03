@@ -30,11 +30,11 @@
 typedef struct {
 	u_int16_t	limit_low	_pak;
 	u_int16_t	base_low	_pak;
-	u_int8_t	base_16_23	_pak;
-	u_int8_t	access_flags	_pak;
-	u_int8_t	flags_limit_hi	_pak;
-	u_int8_t	base_24_31	_pak;
-} gdt_entry_t;
+	u_int8_t	base_16_23;
+	u_int8_t	access_flags;
+	u_int8_t	flags_limit_hi;
+	u_int8_t	base_24_31;
+} _pak gdt_entry_t;
 
 typedef struct {
 	u_int16_t	gdt_entries	_pak;
