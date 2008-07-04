@@ -9,8 +9,7 @@ CFLAGS+=-isystem../../include/ -I.. -I../lib -mpush-args
 LDFLAGS=-static -L ../lib -Ttext 0x65020000
 
 APPOBJS=../delibrium/delibrium.o ../crt0.o -R ../calls-user.o
-LIBS=../../../ip/slip.o
-CFLAGS+=-I../../../ip/
+LIBS=
 
 default: slip
 
