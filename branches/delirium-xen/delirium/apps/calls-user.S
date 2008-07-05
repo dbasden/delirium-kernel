@@ -30,6 +30,8 @@
 .global	getpage
 .global	freepage
 .global	await
+.global	add_c_interrupt_handler
+.global	remove_interrupt_handler
 
 .set	mask_interrupt, 0x7ffff000
 .set	unmask_interrupt, 0x7ffff004
@@ -54,3 +56,5 @@
 .set	getpage, 0x7ffff050
 .set	freepage, 0x7ffff054
 .set	await, 0x7ffff058
+.set	add_c_interrupt_handler, 0x7ffff05c
+.set	remove_interrupt_handler, 0x7ffff060
