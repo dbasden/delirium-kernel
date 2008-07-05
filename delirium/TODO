@@ -2,6 +2,12 @@
 
 TODO:
 
+	- BUG: Interrupt handlers can't spin on semaphores (or at least
+	  not in any useful way -- they wont get interrupted). Need to
+	  have semaphore locked stuff like vgaprint and the frameherd
+	  notice when they are being called in an interrupt context and
+	  not use a mutex
+
 	- move the CPU inspecific stuff out of arch/i386/thread.c - stuff
 	  like the short term scheduler, and other logic that would be
 	  much cleaner if abstracted from the actual switching.

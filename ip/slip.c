@@ -4,10 +4,17 @@
 #include <rant.h>
 #include <i386/interrupts.h>
 
+/*
+ * WARNING: This copy is not the current version of the code
+ *
+ * It's being ported to run as a delirium `app'. Look in
+ * ../delirium/apps/slip/ for a more current version
+ */
+
 #include "delibrium/delibrium.h"
 #include "slip.h"
 
-#define SLIPDEBUG
+#define SLIPDEBUG	1
 #define PAGE_SIZE	4096
 
 /*
@@ -82,7 +89,7 @@ void slip_on_receive_interrupt() {
 
 	inchar = read_serial(serial_base);
 
-	#ifdef SLIP_DEBUG
+	#ifdef SLIPDEBUG
 	printf("[slip] slip_on_receive_interrupt: read 0x%2x\n", inchar);
 	#endif
 	switch (inchar) {
@@ -134,6 +141,8 @@ void slip_start_interface() {
 	soapbox_id_t default_sb;
 	soapbox_id_t serial_input_sb;
 
+	slip_setup_inth(3);
+
 	if (! (serial_input_sb = get_soapbox_from_name("/hardware/serial/0"))) {
 		print("slip_start_interface: couldn't find soapbox for /hardware/serial/0");
 		return;
@@ -165,7 +174,6 @@ void slip_start_interface() {
 void slip_init(u_int16_t base_port, u_int8_t hw_int, size_t speed) {
 	serial_base = base_port;
 	init_serial(base_port, speed);
-	slip_setup_inth(hw_int);
 	new_thread(slip_start_interface);
 
 }

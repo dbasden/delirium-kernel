@@ -64,9 +64,8 @@ void add_handler(u_int16_t offset, void (*handler)(void));
 #endif
 
 #define __add_c_isr(__hwint, __handler)\
-                ({extern void isr_hook_ ## __hwint();\
-                  (&C_isr_p)[(__hwint)] = (void *)(__handler);\
-                  add_handler(INTR_BASE+(__hwint), c_isr_wrapper_table[__hwint]);})
+                ({ (&C_isr_p)[(__hwint)] = (void *)(__handler);\
+                  add_handler(INTR_BASE+(__hwint), c_isr_wrapper_table[(__hwint)]);})
 #define add_c_isr(__hwint, __handler) __add_c_isr(__hwint, __handler)
 
 extern	void **C_isr_p;
