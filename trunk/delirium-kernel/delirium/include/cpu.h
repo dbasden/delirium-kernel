@@ -4,6 +4,7 @@
 #ifdef ARCH_i386
 #include "i386/cpu.h"
 #else
+#warn "Semaphores aren't being used -- write a semaphore implementation for this arch!"
 #define INIT_SEMAPHORE
 #define SPIN_WAIT_SEMAPHORE
 #define RELEASE_SEMAPHORE

@@ -1,6 +1,7 @@
 #include <delirium.h>
 #include <ipc.h>
 #include <rant.h>
+#include <multitask.h>
 
 #include "delibrium/delibrium.h"
 #include "readline.h"
@@ -28,6 +29,6 @@ void dream() {
 	// TODO: Make this the default behaviour
 	for (;;) {
 		believe();
-		yield();
+		await();
 	}
 }

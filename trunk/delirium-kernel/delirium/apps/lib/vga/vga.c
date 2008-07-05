@@ -1,6 +1,6 @@
 #include <delirium.h>
-#include <i386/io.h>
 #include <paging.h>
+#include <i386/io.h>
 #include "delibrium/delibrium.h"
 
 #include "vga.h"
@@ -55,5 +55,5 @@ void vga_openwindow() {
 
 	pd = get_current_page_dir();
 	for (p = 0xa0000; p < 0xa0000 + (64*1024); p += PAGE_SIZE)
-		add_to_page_dir(pd, (void *)p, (void *)p);
+		add_to_pagedir(pd, (void *)p, (void *)p);
 }

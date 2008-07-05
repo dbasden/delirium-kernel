@@ -5,8 +5,8 @@
  	get_thread_info		get_thread_info		0x7ffff010
  	splinter		splinter		0x7ffff014
  	add_interrupt_handler		add_handler		0x7ffff018
- 	remove_from_pagetable		paging_remove_from_table		0x7ffff01c
- 	add_to_pagetable		paging_add_to_table		0x7ffff020
+ 	remove_from_pagedir		paging_remove_from_dir		0x7ffff01c
+ 	add_to_pagedir		paging_add_to_dir		0x7ffff020
  	print		vgaprint		0x7ffff024
  	get_new_soapbox		get_new_soapbox		0x7ffff028
  	get_soapbox_from_name		get_soapbox_from_name		0x7ffff02c
@@ -20,3 +20,6 @@
  	herdpages		kherdpages		0x7ffff04c
  	getpage		kgetpage		0x7ffff050
  	freepage		kfreepage		0x7ffff054
+ 	await		await		0x7ffff058
+ 	add_c_interrupt_handler		add_c_interrupt_handler		0x7ffff05c
+ 	remove_interrupt_handler		remove_interrupt_handler		0x7ffff060

@@ -9,7 +9,7 @@
 #define HELP	"? date help moof\n"
 
 
-extern void elf_load(void *elf_image);
+extern void eve_elf_load(void *elf_image);
 
 void prompt() { print(PROMPT); }
 
@@ -51,7 +51,20 @@ static void do_exec(char *name) {
 		return;
 	}
 	printf("Found %s at 0x%8x\n", rte->name, rte->start);
-	elf_load(rte->start);
+	eve_elf_load(rte->start);
+}
+
+static void break_tests() {
+	print("eve break_tests(): Dumping initial debug state\n");
+	send_signal("kdebug/soapbox", 0);
+	send_signal("kdebug/thread", 0);
+	print("eve break_tests(): Starting a few test instances\n");
+	int i;
+	for (i=0; i<10;++i)	
+		 { do_exec("apps/test"); send_signal("kdebug/thread", 0); }
+	send_signal("kdebug/soapbox", 0);
+	send_signal("kdebug/thread", 0);
+	print("eve break_tests(): Done\n");
 }
 
 
@@ -94,6 +107,10 @@ void dsh_parse(char *l) {
 	} else
 	if (!strncmp("moof", l, wl)) {
 		print("Dogcow\n");
+	} else 
+	if (wl && l[0] == '!') {
+		print("eve: Running break-tests...\n");
+		break_tests();
 	} else
 	if (!strncmp("date", l, wl)) {
 		print("It is the 32nd of Borktober!\n");

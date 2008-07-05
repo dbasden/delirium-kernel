@@ -14,6 +14,6 @@ _start:
 	call thread_ret
 end:
 exit:
-	//int $IRQ_KILL
+	int $IRQ_KILL
 	int $IRQ_YIELD
 	jmp exit

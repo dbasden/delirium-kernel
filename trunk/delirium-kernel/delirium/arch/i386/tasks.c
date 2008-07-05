@@ -28,12 +28,21 @@
 static Semaphore	INIT_SEMAPHORE(splinter_sem);
 		static void *		sem_locked_splinter_to;	// Only use when holding semaphore
 		static void *		sem_locked_splinter_sp;	// Only use when holding semaphore
+static Semaphore	INIT_SEMAPHORE(execute_splinter_sem);   // Only use once above two are set
 
 
 extern void do_context_switch();		// cpu.h
 
-size_t		running_thread_id;
-thread_t	threads[MAX_THREADS];
+size_t 		running_thread_id;
+thread_t 	threads[MAX_THREADS];
+size_t 		global_context_switches;
+
+/*
+ * set the state of the current thread 
+ */
+void set_thread_state(thread_state_t new_state) {
+	threads[running_thread_id].state = new_state;
+}
 
 /*
  * contains the short term scheduler logic
@@ -46,12 +55,21 @@ static inline u_int32_t get_task_to_run() {
 	while (id != running_thread_id  &&  (threads[id].state != running))
 		id = (id+1) % MAX_THREADS;
 
+	// Look for an idle thread
+	if (id == running_thread_id && threads[id].state != running) {
+		id = (running_thread_id+1) % MAX_THREADS;
+		while (id != running_thread_id  &&  (threads[id].state != idle))
+			id = (id+1) % MAX_THREADS;
+	}
+
 	return id;
 }
 
-/* called only from within context switch */
-static inline void copy_current_thread(size_t outgoing_esp) {
-	int new_thread_id;	
+/* called only from within a context switch 
+ * returns the ID of the new thread
+ */
+static inline size_t copy_current_thread(size_t outgoing_esp) {
+	size_t new_thread_id;	
 	
 	// Find a free thread id
 	new_thread_id = (running_thread_id+1) % MAX_THREADS;
@@ -77,7 +95,10 @@ static inline void copy_current_thread(size_t outgoing_esp) {
 	// Setup other thread member variables
 	threads[new_thread_id].state = running;
 	threads[new_thread_id].refcount = 0;
+	threads[new_thread_id].context_switches = 0;
 	QUEUE_INIT(&(threads[new_thread_id].rants));
+
+	return new_thread_id;
 }
 
 /*
@@ -92,18 +113,18 @@ u_int32_t get_next_switch(u_int32_t outgoing_esp) {
 			sizeof(thread_cpustate_t));
 	threads[running_thread_id].ih_esp = (void *) outgoing_esp;
 
-	if (LOCKED_SEMAPHORE(splinter_sem)) {
+	if (LOCKED_SEMAPHORE(execute_splinter_sem)) {
 		/*
 		 * Create a new thread from current execution context
-		 * (splinter)
+		 * (splinter) and change context to that thread
 		 */
-		copy_current_thread(outgoing_esp);
-		RELEASE_SEMAPHORE(splinter_sem);  // Release lock
+		running_thread_id  = copy_current_thread(outgoing_esp);
+		RELEASE_SEMAPHORE(execute_splinter_sem);  // Release semaphore once done
 	} else {
-
 		running_thread_id = get_task_to_run();
-
 	}
+	++global_context_switches;
+	++(threads[running_thread_id].context_switches);
 
 	Assert(running_thread_id < MAX_THREADS);
 
@@ -114,6 +135,8 @@ u_int32_t get_next_switch(u_int32_t outgoing_esp) {
 u_int32_t kill_current_thread(u_int32_t outgoing_esp) {
 	size_t	brick_wall	= running_thread_id;
 	u_int32_t new_esp;
+
+	threads[brick_wall].state =leaving;
 
 	/* The outgoing esp isn't very useful to us at
 	 * this point. It's quite possible that it's
@@ -180,6 +203,9 @@ void setup_tasks() {
 		sizeof(tss_t)
 	);
 
+	/* Global context switch counter */
+	global_context_switches = 0;
+
 	/* Initial thread is the current execution context; ID 0 */
 	running_thread_id = 0;
 	threads[0].state = running;
@@ -221,19 +247,28 @@ void splinter(void *taskentry, void *newsp) {
 	 * all this is setup.
 	 */
 
-	SPIN_WAIT_SEMAPHORE(splinter_sem); // Get lock
+	SPIN_WAIT_SEMAPHORE(splinter_sem); // Get lock on splintering
 
 	sem_locked_splinter_to = taskentry;
 	sem_locked_splinter_sp = newsp;
 
-	YIELD_CONTEXT;	/*
+	SPIN_WAIT_SEMAPHORE(execute_splinter_sem); // Signal STS that above two vars are set
+
+			/*
 			 * context switch handler will call short term scheduler
 			 * (get_next_switch), where there are hooks for the rest
-			 * of the splinter
+			 * of the splinter.
+			 *
+			 * Below we explicitly invoke the STS to make sure this
+			 * will happen, but we may have already hit the STS from a
+			 * timer interrupt or other interrupt
 			 */
+	YIELD_CONTEXT;
 
-	// We DONT release the semaphore here. It will be released when our 
-	// splinter request is handled!
+	// We DONT release execute_splinter_sem semaphore here. It will be released when our 
+	// splinter request is handled! We do however release splinter_sem
+	RELEASE_SEMAPHORE(splinter_sem); 
+	
 }
 
 /*
@@ -288,3 +323,44 @@ void exit_kthread() {
 void yield() {
 	YIELD_CONTEXT;
 }
+
+/*
+ * set the current thread to a listening state until there are rants queued for it
+ * and then yield context
+ *
+ * the listening state is advisory for the scheduler, and isn't mandatory, so
+ * having a thread inadvertently put into a running state isn't going to break
+ * anything (although might be inefficient in some cases). having a thread 
+ * inadvertently be put in a listening state when there are rants waiting however 
+ * CAN cause deadlock, so we avoid this if at all possible
+ */
+void await() {
+	// We want to avoid deadlock due to a rant being queued after the await() call,
+	// but before we change the state to listening.
+	//
+	// To avoid this case, we set the state to listening, and then check to see if
+	// there are any rants queued. If there are, we roll back the state to running.
+	// If there aren't, any future rants arriving will wake the thread
+	// (assuming sending a rant will first 
+	
+	volatile thread_state_t *thread_state_p = &(threads[running_thread_id].state);
+	if (! (*thread_state_p == running || *thread_state_p == listening))
+		return;
+
+	*thread_state_p = listening;
+
+	if (! QUEUE_ISEMPTY(&(threads[running_thread_id].rants))) 
+		*thread_state_p = running;
+	else
+		YIELD_CONTEXT;
+}
+
+/*
+ * set a listening or running thread to a running state
+ */
+void wake_thread(size_t thread_id) {
+	thread_state_t *thread_state_p = &(threads[thread_id].state);
+	if (*thread_state_p == running || *thread_state_p == listening)
+		*thread_state_p = running;
+}
+

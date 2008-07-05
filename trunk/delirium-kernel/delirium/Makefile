@@ -1,8 +1,7 @@
 include Makefile.delirium
 include arch/${ARCH}/Makefile.arch
 
-KERNLDFLAGS=-O1 -nostdlib -Map kern.map --cref -T./kernel.x
-#KERNLDFLAGS=-nostdlib -Map kern.map --cref -Ttext ${KERNSTART} 
+KERNLDFLAGS=-O1 -nostdlib -Map kern-${ARCH}.map --cref -T./kernel-${ARCH}.x
 
 # TODO: Move into arch/fake/Makefile.arch
 ifeq ("${ARCH}", "fake")
@@ -49,15 +48,36 @@ kern-${ARCH}: ${ARCHOBJS} ${DLIBOBJS} ${KERNOBJS}
 ramtreemaker:
 	make -C tools/ramtreemaker
 
-ramtree: ramtreemaker
+ramtree-base: ramtreemaker
 	tools/ramtreemaker/ramtreemaker ./delirium.ramtree < ramtree.src
+
+ramtree-xen-install: ramtree-base
+	cp ./delirium.ramtree boot
+
+# legacy
+ramtree: ramtree-i386-install
+
+ramtree-i386-install: ramtree-base
 	sudo mount -oloop ./floppy.386 ./mnt
 	cp ./delirium.ramtree mnt
 	sudo umount ./mnt
 	/sbin/e2fsck floppy.386
 	touch floppy.386
 	
-image: kern-${ARCH} apps ramtree
+image-xen: kern-xen apps ramtree-xen-install
+	cp xen.gz boot
+	cp kern-xen boot
+	echo "(fd0)	`pwd`/floppy.xen" > boot/boot/grub/device.map
+	rm -rf /tmp/deliriumboottmp || true
+	# There isn't room on the floppy for the svn metadata
+	# (not that it should be there anyhow) -- davidb
+	#genext2fs -b 1440 -d boot/ ./floppy.xen 
+	( if [ -d boot/.svn ]; then svn export boot/ /tmp/deliriumboottmp; else	cp -a boot /tmp/deliriumboottmp; fi )
+	genext2fs -b 1440 -d /tmp/deliriumboottmp/ ./floppy.xen && \
+	echo -e 'root (fd0)\ninstall /boot/grub/stage1 d (fd0) /boot/grub/stage2\nquit\n' | /usr/sbin/grub --batch --device-map=`pwd`/boot/boot/grub/device.map --no-floppy --boot-drive='(fd0)'
+	rm -rf /tmp/deliriumboottmp || true
+
+image-i386: kern-i386 apps ramtree
 	sudo mount -oloop ./floppy.386 ./mnt
 	cp kern-i386 mnt
 	${STRIP} mnt/kern-i386
@@ -67,6 +87,8 @@ image: kern-${ARCH} apps ramtree
 	sudo umount ./mnt
 	/sbin/e2fsck floppy.386
 	touch floppy.386
+
+image: image-${ARCH}
 
 clean:
 	make -C apps clean
@@ -83,6 +105,7 @@ gdb:
 	gdb ./kern-i386 :1234
 
 dep:
-	makedepend -f Makefile.depends -- ${CFLAGS} -I./include -I./include/* -I./include/*/* -- `find . | egrep '\.[cSh]' | grep -v '\.svn'`
+	makedepend -f Makefile.depends -- ${CFLAGS} -I./include -I./include/* -I./include/*/* -I./apps/* -I./apps/*/* -- `find . | egrep '\.[cSh]' | grep -v '\.svn' | grep -v ramtreemaker | grep -v dlib/test_`
 
 include Makefile.depends
+

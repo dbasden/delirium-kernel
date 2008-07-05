@@ -4,7 +4,7 @@ CC=$(GCC_EXEC_PREFIX)gcc
 LD=$(GCC_EXEC_PREFIX)ld
 AS=$(GCC_EXEC_PREFIX)as
 
-CFLAGS=-Wall -g -DARCH_i386 -DENABLE_ASSERTS -ffreestanding
+CFLAGS=-Wall -g -DARCH_i386 -DENABLE_ASSERTS -ffreestanding -mpush-args
 CFLAGS+=-isystem../../include/ -I.. -I../lib -L ../lib -static
 
 default: test.elf

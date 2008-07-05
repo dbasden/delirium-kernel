@@ -16,13 +16,13 @@
 
 volatile Semaphore INIT_SEMAPHORE(vga_print_s);
 
-static unsigned char xpos = 0;
-static unsigned char ypos = (VGA_LINES-1);
+static unsigned char volatile xpos = 0;
+static unsigned char volatile ypos = (VGA_LINES-1);
 
-static char *vidmem = VGA_BASE;
+static char volatile *vidmem = VGA_BASE;
 
 static char *spinner = "/-\\|";
-static char *spin = "";
+static char volatile *spin = "";
 
 
 static inline void kvgacursoroff() {
@@ -92,6 +92,8 @@ void vgaprint(char *message) {
 	int i;
 	int offset;
 
+	while (LOCKED_SEMAPHORE(vga_print_s)) 
+		;
 	SPIN_WAIT_SEMAPHORE(vga_print_s);
 	kvgacursoroff();
 
