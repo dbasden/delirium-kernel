@@ -43,7 +43,7 @@ void add_handler(u_int16_t offset, void (*handler)(void)) {
 }
 
 
-/* wrap a C interrupt handler and install it in the IDT
+/* wrap a C hardware IRQ  handler and install it in the IDT
  * the interrupt is then unmasked.
  *
  * for userspace calls - calls add_c_isr 
@@ -56,10 +56,11 @@ void add_c_interrupt_handler(u_int8_t hw_interrupt, void (*handler)(void)) {
 	/* really don't want to have this firing off while we are
 	 * changing the ISR
 	 */
+	//asm(" cli");
 	pic_mask_interrupt(hw_interrupt);
-
 	add_c_isr(hw_interrupt, handler);
 	pic_unmask_interrupt(hw_interrupt);
+	//asm(" sti");
 }
 
 /* 

@@ -33,9 +33,9 @@ static Semaphore	INIT_SEMAPHORE(execute_splinter_sem);   // Only use once above 
 
 extern void do_context_switch();		// cpu.h
 
-size_t		running_thread_id;
-thread_t	threads[MAX_THREADS];
-size_t		global_context_switches;
+size_t 		running_thread_id;
+thread_t 	threads[MAX_THREADS];
+size_t 		global_context_switches;
 
 /*
  * set the state of the current thread 
@@ -343,7 +343,7 @@ void await() {
 	// If there aren't, any future rants arriving will wake the thread
 	// (assuming sending a rant will first 
 	
-	thread_state_t *thread_state_p = &(threads[running_thread_id].state);
+	volatile thread_state_t *thread_state_p = &(threads[running_thread_id].state);
 	if (! (*thread_state_p == running || *thread_state_p == listening))
 		return;
 

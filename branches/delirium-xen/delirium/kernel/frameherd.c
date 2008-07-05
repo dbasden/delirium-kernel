@@ -39,7 +39,7 @@ static volatile Semaphore INIT_SEMAPHORE(frameherd_s);
 #define HERD_FRAMES	(_MEM_TO_FRAME(GIGABYTE)) 
 
 /* Pointer to the herd base */
-static bitvec_t		herd = (void *) HERD_BASE;
+static bitvec_t volatile	herd = (void *) HERD_BASE;
 
 
 
@@ -59,8 +59,8 @@ struct cache_entry {
 	size_t	bytes;
 };
 
-static struct cache_entry	map_cache[MAX_MAP_CACHE_ENTRIES];
-static size_t			map_cache_entries = 0;
+static volatile struct cache_entry	map_cache[MAX_MAP_CACHE_ENTRIES];
+static volatile size_t			map_cache_entries = 0;
 
 
 void init_herder() {
@@ -97,6 +97,8 @@ int take_from_herd(int frames, void *addrs) {
 	int taken;
 	int f;
 
+	while (LOCKED_SEMAPHORE(frameherd_s))
+		;
 	SPIN_WAIT_SEMAPHORE(frameherd_s);
 	for (taken = 0; taken < frames; taken++) {
 		if ((f = next_free_in_pool()) == -1)

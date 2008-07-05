@@ -13,7 +13,7 @@
 pfhook_base:
 	.long	0x7ffff000
 pfhook_end:
-	.long	0x7ffff05c
+	.long	0x7ffff064
 
 	.align 8
 pfhook_table:
@@ -40,3 +40,5 @@ pfhook_table:
 	.long	[kgetpage]
 	.long	[kfreepage]
 	.long	[await]
+	.long	[add_c_interrupt_handler]
+	.long	[remove_interrupt_handler]

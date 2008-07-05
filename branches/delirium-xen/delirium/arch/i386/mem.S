@@ -106,9 +106,11 @@ chip_tax:
 	movl	%cr2, %eax
 	pushl	%eax	// cr2 should still have the faulted address
 	pushl	$(pf_message)
+	movl	vga_print_s, %ebx
 	movl	$1, vga_print_s
 	call 	kprintf
 	addl	$24, %esp
+	movl	%ebx, vga_print_s
 	// Make sure that the running thread isn't the kernel
 	// thread. If it is kpanic instead of just killing the thread
 	cmpl	$0, running_thread_id

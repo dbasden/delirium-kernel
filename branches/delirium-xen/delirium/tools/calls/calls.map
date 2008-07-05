@@ -21,3 +21,5 @@
  	getpage		kgetpage		0x7ffff050
  	freepage		kfreepage		0x7ffff054
  	await		await		0x7ffff058
+ 	add_c_interrupt_handler		add_c_interrupt_handler		0x7ffff05c
+ 	remove_interrupt_handler		remove_interrupt_handler		0x7ffff060
