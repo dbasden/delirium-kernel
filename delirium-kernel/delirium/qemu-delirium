@@ -1,5 +1,5 @@
 #! /bin/bash
-qemu -s -fda floppy.386 -m 32 $@ &
+qemu -s -fda floppy.386 -m 32 -net none $@ &
 echo Hit [ENTER] to break in with gdb
 read
 TEXT=`ps ax | grep floppy.386 | grep -v grep`

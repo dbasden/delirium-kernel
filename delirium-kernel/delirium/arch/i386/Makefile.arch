@@ -1,5 +1,5 @@
 # Make sure we link boot.o first, as it contains the multiboot header
 ARCHOBJS=arch/i386/boot.o
-ARCHOBJS+=arch/i386/pic.o arch/i386/inth.o arch/i386/cpu.o arch/i386/io.o 
+ARCHOBJS+=arch/i386/pic.o arch/i386/inth.o arch/i386/cpu.o
 ARCHOBJS+=arch/i386/mem.o arch/i386/tasks.o arch/i386/setup.o arch/i386/paging.o
 ARCHOBJS+=arch/i386/calls-kernel.o

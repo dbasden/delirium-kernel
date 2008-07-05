@@ -27,9 +27,12 @@ void printf(char *format, ...);
 void hexdump(char *data, size_t len);
 void new_thread(void *threadEntry);
 
+#if 0
 void init_serial(u_int16_t baseport, size_t speed);
-inline char read_serial(u_int16_t baseport);
-inline void send_serial(u_int16_t baseport, char ch);
+inline void consume_serial_buffer(u_int16_t baseport);
+inline char blocking_read_serial(u_int16_t baseport);
+inline void blocking_send_serial(u_int16_t baseport, char ch);
+#endif
 
 void *get_current_page_dir();
 

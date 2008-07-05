@@ -20,3 +20,6 @@ getpages		kgetpages
 herdpages		kherdpages
 getpage			kgetpage
 freepage		kfreepage
+await			await
+add_c_interrupt_handler	add_c_interrupt_handler
+remove_interrupt_handler	remove_interrupt_handler

@@ -12,8 +12,8 @@ extern void setup_paging();
 extern void paging_add_to_dir(page_table_t dir, void *logical, void *physical);
 extern void paging_remove_from_dir(page_table_t dir, void *logical);
   
-extern void add_to_page_dir(page_table_t dir, void *logical, void *physical);
-extern void remove_from_page_dir(page_table_t dir, void *logical);
+extern void add_to_pagedir(page_table_t dir, void *logical, void *physical);
+extern void remove_from_pagedir(page_table_t dir, void *logical);
 
 extern void *kgetpage();
 extern int kgetpages(int, void **);

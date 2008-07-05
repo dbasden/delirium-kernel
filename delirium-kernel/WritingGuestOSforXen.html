@@ -1,0 +1,248 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<meta name="GENERATOR" content="TtH 3.67">
+ <style type="text/css"> div.p { margin-top: 7pt;}</style>
+ <style type="text/css"><!--
+ td div.comp { margin-top: -0.6ex; margin-bottom: -1ex;}
+ td div.comb { margin-top: -0.6ex; margin-bottom: -.6ex;}
+ td div.hrcomp { line-height: 0.9; margin-top: -0.8ex; margin-bottom: -1ex;}
+ td div.norm {line-height:normal;}
+ span.roman {font-family: serif; font-style: normal; font-weight: normal;} 
+ span.overacc2 {position: relative;  left: .8em; top: -1.2ex;}
+ span.overacc1 {position: relative;  left: .6em; top: -1.2ex;} --></style>
+ 
+
+<title> Porting an x86 OS to run as a Xen 3.0 Guest</title>
+ 
+<h1 align="center">Porting an x86 OS to run as a Xen 3.0 Guest </h1>
+
+<h3 align="center">David Basden (davidb-portxen@rcpt.to) </h3>
+
+<h3 align="center">Jun 18, 2007
+</h3>
+
+<div class="p"><!----></div>
+ <h2><a name="tth_sEc1">
+1</a>&nbsp;&nbsp;Introduction</h2>
+
+<div class="p"><!----></div>
+Despite the best efforts of the developers of the Xen codebase, much of the
+documentation available for the interface between the Xen 3.0 hypervisor and 
+guest operating systems refers specifically to the port of the Linux kernel 
+to the Xen hypervisor..
+
+<div class="p"><!----></div>
+The remaining infromation about the hypervisor / guest interface is lacking specifics
+about the current ABI and calling conventions for the x86/32 platform, or refers to 
+the now outdated Xen 2.0 hypervisor / guest interface. I will attempt to fill in 
+some of these gaps in this document.
+
+<div class="p"><!----></div>
+This document should be of most interest to developers porting an existing IA32/x86-32
+operating system to run under the Xen 3.0 hypervisor. It should be read in conjunction
+with the official Xen hypervisor interface documentation for Xen 3.0.
+
+<div class="p"><!----></div>
+The version of the Xen hypervisor that is referred to in this document is version 3.0.2.
+The example operating system being ported is DeLiRiuM v0.6 
+<tt>http://davidb.ucc.asn.au/delirium/</tt>.
+Code examples in this document that are taken from DeLiRiuM are released under the General
+Public Licence version 2.0.  The kernel binary format for the guest operating 
+system is assumed to be ELF.
+
+<div class="p"><!----></div>
+ <h2><a name="tth_sEc2">
+2</a>&nbsp;&nbsp;ELF Notes: Hints to the hypervisor for loading</h2>
+
+<div class="p"><!----></div>
+     <h3><a name="tth_sEc2.1">
+2.1</a>&nbsp;&nbsp;Purpose of the ELF Notes</h3>
+The Xen hypervisor, like many bootstrappers for modern operating systems, looks for
+information in the kernel being loaded. In this case these hints:
+
+<div class="p"><!----></div>
+
+<ul>
+<li> make sure the binary is a guest kernel for xen
+<div class="p"><!----></div>
+</li>
+
+<li> instruct Xen on where to load the kernel
+<div class="p"><!----></div>
+</li>
+
+<li> instruct Xen on the kernel entrypoint for Start-Of-Day
+<div class="p"><!----></div>
+</li>
+
+<li> specify Xen hypervisor features requested or required by the guest OS
+<div class="p"><!----></div>
+</li>
+</ul>
+
+<div class="p"><!----></div>
+These hints are embedded in the guest kernel binary using ELF notes.  ELF notes replace 
+the now deprecated <tt>__xen_guest</tt> string interface used in previous
+hypervisor versions.
+
+<div class="p"><!----></div>
+     <h3><a name="tth_sEc2.2">
+2.2</a>&nbsp;&nbsp;Implementing ELF Notes</h3>
+
+<div class="p"><!----></div>
+Information specified in the ELF notes are required as well the ELF program and segment 
+headers, which give more specific loading information. Both the ELF headers and the
+ELF notes <b>must</b> be consistent for the hypervisor to load the guest kernel.
+
+<div class="p"><!----></div>
+The specifics of the notes, and those required, Specifics as to the contents
+of the notes are found in the <i>xen/include/public/elfnotes.h</i> Xen headers. 
+<a href="#tthFtNtAAB" name="tthFrefAAB"><sup>1</sup></a>
+All ELF notes for the Xen hypervisor must have the ELF Note name of 'Xen'.
+
+<div class="p"><!----></div>
+There is a good overview of (not specific to Xen) ELF notes and their 
+implementation available from the NetBSD web-site at 
+
+<div class="p"><!----></div>
+<tt>http://www.netbsd.org/docs/kernel/elf-notes.html</tt>.
+
+<div class="p"><!----></div>
+      <h4><a name="tth_sEc2.2.1">
+2.2.1</a>&nbsp;&nbsp;ELF Note macro example</h4>
+
+<div class="p"><!----></div>
+The following is a simple macro for the GNU assembler to include an ELF note
+when using GNU ld:
+
+<div class="p"><!----></div>
+
+<pre>
+.macro&nbsp;ELFNOTE&nbsp;name,&nbsp;type,&nbsp;desc:vararg
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.p2align&nbsp;2
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.long&nbsp;&nbsp;&nbsp;1f&nbsp;-&nbsp;0f
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.long&nbsp;&nbsp;&nbsp;3f&nbsp;-&nbsp;2f
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.long&nbsp;&nbsp;&nbsp;\type
+0:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.asciz&nbsp;&nbsp;"\name"
+1:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.p2align&nbsp;2
+2:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\desc
+3:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.p2align&nbsp;2
+.endm
+
+</pre>
+
+
+<div class="p"><!----></div>
+Note: The above code will only be linked correctly as a note (i.e. put in an ELF
+<tt>PH_NOTE</tt> segment) when it is placed a subsection of <tt>.note</tt>.
+
+<div class="p"><!----></div>
+      <h4><a name="tth_sEc2.2.2">
+2.2.2</a>&nbsp;&nbsp;Xen ELF Note examples</h4>
+
+<div class="p"><!----></div>
+The following are some examples of using the above macro to provide ELF notes
+to the Xen hypervisor:
+
+<div class="p"><!----></div>
+
+<pre>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.section&nbsp;".note.Xen",&nbsp;"a"
+
+ELFNOTE&nbsp;Xen&nbsp;XEN_ELFNOTE_XEN_VERSION&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.asciz&nbsp;"xen-3.0"
+ELFNOTE&nbsp;Xen&nbsp;XEN_ELFNOTE_GUEST_OS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.asciz&nbsp;"DeLiRiuM"
+ELFNOTE&nbsp;Xen&nbsp;XEN_ELFNOTE_GUEST_VERSION&nbsp;&nbsp;&nbsp;.asciz&nbsp;"0.6-xen"
+ELFNOTE&nbsp;Xen&nbsp;XEN_ELFNOTE_LOADER&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.asciz&nbsp;"generic"
+ELFNOTE&nbsp;Xen&nbsp;XEN_ELFNOTE_VIRT_BASE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.long&nbsp;0
+ELFNOTE&nbsp;Xen&nbsp;XEN_ELFNOTE_ENTRY&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.long&nbsp;[_start]
+ELFNOTE&nbsp;Xen&nbsp;XEN_ELFNOTE_FEATURES&nbsp;	&nbsp;.asciz&nbsp;"writable_page_tables"
+ELFNOTE&nbsp;Xen&nbsp;XEN_ELFNOTE_PAE_MODE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.asciz&nbsp;"yes"
+ELFNOTE&nbsp;Xen&nbsp;XEN_ELFNOTE_HYPERCALL_PAGE&nbsp;&nbsp;.long&nbsp;HYPERCALL_BASE
+
+</pre>
+
+
+<div class="p"><!----></div>
+ <h2><a name="tth_sEc3">
+3</a>&nbsp;&nbsp;Hypercalls</h2>
+
+     <h3><a name="tth_sEc3.1">
+3.1</a>&nbsp;&nbsp;The Hypercall Page</h3>
+
+<div class="p"><!----></div>
+The Xen hypervisor exports a 4KB page to the IA32/x86-32 guest kernel, which
+contains code to invoke each hypercall. The code for a specific hypercall is
+located at <tt>(hypercall_page_base&nbsp;+&nbsp;(hypercall_number&nbsp;*&nbsp;32))</tt>, 
+where <tt>hypercall_page_base</tt> is the start address of the hypercall 
+page exported by the hypervisor, and hypercall
+number is the numeric hypercall ID, as found in <i>xen/include/public/xen.h</i>
+
+<div class="p"><!----></div>
+You can specify the virtual address into which to map the hypercall page into 
+with the <tt>XEN_ELFNOTE_HYPERCALL_PAGE</tt> ELF note. Obviously this address 
+has to be 4096 byte aligned, and not contain any other code/data you 
+want to access when starting up.
+
+<div class="p"><!----></div>
+     <h3><a name="tth_sEc3.2">
+3.2</a>&nbsp;&nbsp;Hypercall calling conventions</h3>
+
+<div class="p"><!----></div>
+Params are passed by registers 
+(in-order) eax, ebx, ecx, esi, edi.
+
+<div class="p"><!----></div>
+eax is the hypercall number, while ebx and
+onward store the paramaters. To call, load
+up registers except EAX and execute a CALL to 
+
+<div class="p"><!----></div>
+	<tt>(HYPERCALL_PAGE&nbsp;+&nbsp;(hypercall_num&nbsp;*&nbsp;32))</tt>.
+
+<div class="p"><!----></div>
+The stub code in the hypercall page will correctly fill eax for you, and make the
+hypervisor by calling INT 0x82. The hypercall return value will be in eax on return,
+and all other paramater registered will have been clobbered.
+
+<div class="p"><!----></div>
+      <h4><a name="tth_sEc3.2.1">
+3.2.1</a>&nbsp;&nbsp;Example hypercall wrapper</h4>
+
+<div class="p"><!----></div>
+This is (a rather poorly written) example of a wrapper function to take hypercalls parameters
+from the stack and passing-by-register to the Xen hypercall page, while also saving and
+restoring registers that would otherwise be clobbered by the hypercall.
+
+<div class="p"><!----></div>
+
+<pre>
+examplehypercall:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pushl&nbsp;&nbsp;&nbsp;%ebp
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;movl&nbsp;&nbsp;&nbsp;&nbsp;%esp,%ebp
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pushal&nbsp;&nbsp;//&nbsp;EAX&nbsp;ECX&nbsp;EDX&nbsp;EBX&nbsp;ESP&nbsp;EBP&nbsp;ESI&nbsp;EDI
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;movl&nbsp;&nbsp;&nbsp;&nbsp;8(%ebp),&nbsp;%ebx
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;movl&nbsp;&nbsp;&nbsp;&nbsp;12(%ebp),&nbsp;%ecx
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;movl&nbsp;&nbsp;&nbsp;&nbsp;16(%ebp),&nbsp;%edx
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;movl&nbsp;&nbsp;&nbsp;&nbsp;18(%ebp),&nbsp;%esi
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;movl&nbsp;&nbsp;&nbsp;&nbsp;22(%ebp),&nbsp;%edi
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;call&nbsp;&nbsp;&nbsp;&nbsp;(HYPERCALL_PAGE&nbsp;+&nbsp;(HYPERCALL_example&nbsp;*&nbsp;32))
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;popal
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;movl&nbsp;&nbsp;&nbsp;&nbsp;%ebp,%esp
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;popl&nbsp;&nbsp;&nbsp;&nbsp;%ebp
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ret
+
+</pre>
+
+
+<div class="p"><!----></div>
+<hr /><h3>Footnotes:</h3>
+
+<div class="p"><!----></div>
+<a name="tthFtNtAAB"></a><a href="#tthFrefAAB"><sup>1</sup></a>Xen headers in this case and throughout the document refer to headers in the Xen 3.0.2 hypervisor source tree
+<br /><br /><hr /><small>File translated from
+T<sub><font size="-1">E</font></sub>X
+by <a href="http://hutchinson.belmont.ma.us/tth/">
+T<sub><font size="-1">T</font></sub>H</a>,
+version 3.67.<br />On 18 Jun 2007, 14:36.</small>
+</html>

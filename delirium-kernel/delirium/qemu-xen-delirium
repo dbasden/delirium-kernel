@@ -1,0 +1,10 @@
+#! /bin/bash
+qemu -s -fda floppy.xen -m 64 $@ &
+echo Hit [ENTER] to break in with gdb
+read
+TEXT=`ps ax | grep floppy.xen | grep -v grep`
+if [ -z "${TEXT}" ]; then
+ exit
+fi
+gdb -q ./kern-xen :1234 
+killall -HUP qemu

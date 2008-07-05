@@ -124,15 +124,55 @@ static void setup_framemalloc(multiboot_info_t *mb) {
 	
 }
 
+#ifdef ARCH_xen
+extern int set_debugreg(int reg, unsigned long value);
+extern int xen_version(int cmd);
+extern int console_io(int cmd, int count, char *str);
+#endif
+
+/*
+ * idle thread - thread that is only run when the STS has no other tasks to run
+ *
+ * (NOTE: this is only the case once the thread state is set to 'idle'. Before
+ * this, it's in the running state, and can be switched in by the STS)
+ *
+ * Halts the CPU until an interrupt occurs, then yield the cpu context to allow the STS to work.
+ */
+void idle_thread() {
+	
+	set_thread_state(idle);
+	for (;;) {
+		HALT_CPU;
+		yield();
+	}
+}
+
 // Entry point from ASM
 void cmain(u_int32_t multi_magic, void *multi_addr) {
 	int i;
 
+#ifdef ARCH_i386
+#ifndef ARCH_xen
 	if (multi_magic != (MULTIBOOT_BOOTLOADER_MAGIC)) {
 		kprintf("Not called by a multiboot loader (magic is %08x and should be %08x)\nThings could get really weird from here on in.\n", 
 			multi_magic, MULTIBOOT_BOOTLOADER_MAGIC);
 		multi_addr = 0;
 	}
+#endif
+#endif
+
+
+#ifdef ARCH_xen
+	set_debugreg(0, 0xdeadbeef);
+	set_debugreg(1, 0xfeedbead);
+	set_debugreg(2, 0xc0c1f00f);
+	i = xen_version(0);
+
+	console_io(0, 9, "DeLiRiuM\n");
+	i = xen_version(0);
+	kprintf("Xen version: %d\n", i);
+	return;
+#endif
 
 	kprintf("DeLiRiUM v%d.%d %% Still not king.\n\n", DELIRIUM_MAJOR_VER, DELIRIUM_MINOR_VER);
 
@@ -140,6 +180,12 @@ void cmain(u_int32_t multi_magic, void *multi_addr) {
 
 	kprint(" memory");;
 	setup_memory();
+
+
+#ifndef RAPID_TIMER
+	kprint(", timer");
+	setup_timer();
+#endif
 
 	kprint(", interrupts");
 	setup_interrupts();
@@ -169,7 +215,6 @@ void cmain(u_int32_t multi_magic, void *multi_addr) {
 	kprint(", kthump");
 	setup_kthump();
 
-	kprint(". (done)\n\n");
 			
 	// Initial apps may depend on ramtree existing. Load it first
 	//
@@ -178,14 +223,21 @@ void cmain(u_int32_t multi_magic, void *multi_addr) {
 			load_ramtree(initial_apps[i].base);
 
 #ifdef ENABLE_GDB_STUB
+	kprint(", gdbstub");
 	extern void breakpoint();
 	breakpoint();
 #endif
 
 #ifdef ENABLE_DEBUG_THREAD
+	kprint(", debug thread");
 	extern void setup_debug_listener();
 	setup_debug_listener();
 #endif
+
+	kprint(", idle thread");
+	new_kthread(idle_thread);
+
+	kprint(". (done)\n\n");
 
 	// Assume any other files are to be ELF loaded.
 	//

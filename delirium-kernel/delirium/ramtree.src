@@ -5,3 +5,6 @@ apps/fishy/fishy	apps/fishy
 ../tmp/test		apps/bloat/prime
 apps/testserial/testserial	apps/testserial
 apps/vgatest/vgatest	apps/vgatest
+apps/testfaults/testfaults	apps/testfaults
+apps/slip/slip		apps/slip
+apps/dyn/dyn		apps/dyn
