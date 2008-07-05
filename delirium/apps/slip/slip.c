@@ -84,7 +84,9 @@ void slip_on_receive_interrupt() {
 	if (! _SERIAL_is_Data_Waiting(serial_base)) return;
 	inchar = _SERIAL_Readb(serial_base);
 
-	#ifdef SLIPDEBUG
+	#if 0
+	// DONT USE PRINTF IN AN EVENT HANDLER!
+	// It can't release a semaphore in vgaprint
 	printf(">%2x>", inchar);
 	#endif
 	switch (inchar) {
