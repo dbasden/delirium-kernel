@@ -3,12 +3,14 @@
 #include <soapbox.h>
 #include <rant.h>
 #include <i386/interrupts.h>
+#include <i386/io.h>
 
 #include "delibrium/delibrium.h"
 #include "delibrium/serial.h"
 #include "slip.h"
 
 #define SLIPDEBUG	1
+
 #define PAGE_SIZE	4096
 
 /*
@@ -18,6 +20,7 @@
  */
 
 soapbox_id_t	datalink_soapbox;
+soapbox_id_t	ip_layer_soapbox;
 u_int16_t	serial_base;
 
 inline void slip_send(u_int8_t * packet, size_t len) {
@@ -67,7 +70,13 @@ void serial_listener(message_t msg) {
 			printf("%2x ", buf[i]);
 		print("\n");
 		#endif
-		freepage(msg.m.gestalt.gestalt);
+
+		#ifdef HAIRPIN_SLIP_TEST
+		rant(datalink_soapbox, msg);
+		return;
+		#endif
+
+		rant(ip_layer_soapbox, msg);
 	} 
 }
 
@@ -145,6 +154,12 @@ void slip_start_interface() {
 		return;
 	}
 	
+
+	if (! (ip_layer_soapbox = get_soapbox_from_name("/network/ip/inbound"))) {
+		print("slip_start_interface: couldn't find soapbox for /network/ip/inbound");
+		return;
+	}
+
 	if (!(datalink_soapbox = get_new_soapbox("/network/ip/link/slip"))) {
 		print("slip_start_interface: /network/interface/slip/ip already registered");
 		return;
@@ -175,7 +190,11 @@ void slip_init(u_int16_t base_port, u_int8_t hw_int, size_t speed) {
 
 }
 
+#include "ipv4.h"
+
 void dream() {
+	print("Starting IPv4 driver with address 192.168.11.2\n");
+	ipv4_init( IPV4_OCTET_TO_ADDR(192,168,11,2) );
 	print("Starting SLIP driver on port 0x3f8, irq 4 at 9600\n");
 	slip_init(0x3f8, 4, 9600);
 }
