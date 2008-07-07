@@ -10,12 +10,13 @@ LDFLAGS=-static -L ../lib -Ttext 0x65020000
 
 APPOBJS=../delibrium/delibrium.o ../crt0.o -R ../calls-user.o
 LIBS=
+IPV4OBJS=ip_header.o ipv4.o
 
 default: slip
 
 clean:
 	rm *.o slip 2>/dev/null || true
 
-slip: slip.o
+slip: $(IPV4OBJS) slip.o
 	$(LD) $(LDFLAGS) $(APPOBJS) $^ $(LIBS) -o $@
 	#$(GCC_EXEC_PREFIX)strip slip
