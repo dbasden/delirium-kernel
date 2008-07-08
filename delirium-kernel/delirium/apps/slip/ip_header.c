@@ -26,13 +26,32 @@ typedef 	unsigned int	u_int32_t;
 #include "ipv4.h"
 #include "ipv4_icmp.h"
 
-inline u_int16_t calc_ipv4_header_checksum(u_int16_t *h, int shortcount) {
+
+inline u_int16_t calc_ipv4_checksum(u_int16_t *h, int shortcount) {
 	u_int32_t csum = 0;
 
 	while (shortcount > 0)
 		csum += h[--shortcount] & 0xffff;
 	
 	return htons(~csum);
+}
+
+inline u_int16_t ipv4_checksum(void *buf, size_t len) {
+	u_int32_t csum = 0;
+	u_int16_t * ptr = buf;
+
+	while (len > 1) {
+		csum += *ptr;
+		len -= 2;
+		++ptr;
+	}
+	if (len) 
+		csum += *((u_int8_t *)ptr);
+
+	while (csum >> 16)
+		csum = (csum & 0xffff) + (csum >> 16);
+	
+	return (~csum) & 0xffff;
 }
 
 inline void ipv4_genHeader(struct IPv4_Header *h, u_int16_t packetLength,
@@ -49,7 +68,7 @@ inline void ipv4_genHeader(struct IPv4_Header *h, u_int16_t packetLength,
 	h->header_checksum = 0;
 	h->source = source;
 	h->destination = destination;
-	h->header_checksum = calc_ipv4_header_checksum((u_int16_t *)h, 10);
+	h->header_checksum = calc_ipv4_checksum((u_int16_t *)h, 10);
 	h->header_checksum = htons(h->header_checksum);
 }
 
