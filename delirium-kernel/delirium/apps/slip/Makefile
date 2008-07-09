@@ -6,11 +6,12 @@ AS=$(GCC_EXEC_PREFIX)as
 
 CFLAGS=-Wall -g -DARCH_i386 -DENABLE_ASSERTS -ffreestanding -nostdinc
 CFLAGS+=-isystem../../include/ -I.. -I../lib -mpush-args
-LDFLAGS=-static -L ../lib -Ttext 0x65020000
+LDFLAGS=-static -L ../lib -Ttext 0x65020000 --gc-sections --print-gc-sections
 
-APPOBJS=../delibrium/delibrium.o ../crt0.o -R ../calls-user.o
-LIBS=
-IPV4OBJS=ip_header.o ipv4.o
+#APPOBJS=../delibrium/delibrium.o ../crt0.o -R ../calls-user.o
+APPOBJS=../crt0.o -R ../calls-user.o
+LIBS=-L../delibrium -ldelibrium
+IPV4OBJS=ip_header.o ipv4.o tcp.o
 
 default: slip
 

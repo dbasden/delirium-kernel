@@ -20,6 +20,8 @@
 
 #ifndef ASM
 /* TODO: Move to types.h */
+#ifndef __INT_TYPES_DEFINED
+#define __INT_TYPES_DEFINED
 typedef unsigned char 	u_int8_t;
 typedef unsigned short 	u_int16_t;
 typedef unsigned int 	u_int32_t;
@@ -28,6 +30,7 @@ typedef char		int8_t;
 typedef short		int16_t;
 typedef int		int32_t;
 typedef long long	int64_t;
+#endif
 
 #ifdef size_t
 #undef size_t
