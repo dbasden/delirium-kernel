@@ -10,7 +10,7 @@
 #include "delibrium/serial.h"
 #include "slip.h"
 
-#define SLIPDEBUG	1
+#undef SLIPDEBUG
 
 #define PAGE_SIZE	4096
 
@@ -69,8 +69,8 @@ void datalink_listener(message_t msg) {
 
 void serial_listener(message_t msg) {
 	if (msg.type == gestalt) {
-		char *buf = msg.m.gestalt.gestalt;
 		#ifdef SLIPDEBUG
+		char *buf = msg.m.gestalt.gestalt;
 		int i;
 		print("[slip] Gotframe from serial port\n");
 		for (i=0; i<msg.m.gestalt.length; ++i)
@@ -113,9 +113,15 @@ void slip_on_receive_interrupt() {
 			slip_inbound_escaped = 1;
 			break;
 		case SLIP_ESC_ESC:
-			if (slip_inbound_escaped) inchar = SLIP_ESC;
+			if (slip_inbound_escaped) {
+				inchar = SLIP_ESC;
+				slip_inbound_escaped = 0;
+			}
 		case SLIP_ESC_END:
-			if (slip_inbound_escaped) inchar = SLIP_END;
+			if (slip_inbound_escaped) {
+				inchar = SLIP_END;
+				slip_inbound_escaped = 0;
+			}
 		default:
 			slip_inbound_escaped = 0;
 			slip_inbound_frame[slip_inbound_framesize++] = inchar;
@@ -202,6 +208,6 @@ void slip_init(u_int16_t base_port, u_int8_t hw_int, size_t speed) {
 void dream() {
 	print("Starting IPv4 driver with address 192.168.11.2\n");
 	ipv4_init( IPV4_OCTET_TO_ADDR(192,168,11,2) );
-	print("Starting SLIP driver on port 0x3f8, irq 4 at 9600\n");
-	slip_init(0x3f8, 4, 9600);
+	print("Starting SLIP driver on port 0x3f8, irq 4 at 115200\n");
+	slip_init(0x3f8, 4, 115200);
 }
