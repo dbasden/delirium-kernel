@@ -8,6 +8,7 @@
 #include "delibrium/delibrium.h"
 #include "ipv4.h"
 #include "ipv4_icmp.h"
+#include "tcp.h"
 
 /*
  * IPv4 driver
@@ -213,5 +214,6 @@ void ipv4_start() {
 
 void ipv4_init(IPv4_Address ip) {
 	ipv4_local_ip = ip;
+	tcp_init();
 	new_thread(ipv4_start);
 }
