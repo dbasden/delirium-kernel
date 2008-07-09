@@ -35,18 +35,6 @@ struct IPv4_Header {
 
 #define IPV4_MIN_HEADER_SIZE	20
 
-#ifdef __FUTURE__
-#define IPV4_INTERFACE_UP		1
-#define IPV4_INTERFACE_POINTTOPOINT	2
-
-struct IPv4_Interface {
-	IPv4_Address	ip;
-	IPv4_Address	netmask;
-	IPv4_Address	gateway;
-	size_t		state;
-};
-#endif /* __FUTURE__ */
-
 #define IPV4_OCTET_TO_ADDR(_a,_b,_c,_d) (((_d) <<24 ) | ((_c)<<16) |((_b)<<8) | (_a))
 #define htons(_i)	( ((_i) & 0xff00) >>8 | ((_i) & 0xff) << 8)
 #define htonl(_i)	( ( ((_i) & 0xff000000) >> 24) | ( ((_i) & 0x00ff0000) >> 8) | \
@@ -62,9 +50,6 @@ struct IPv4_Interface {
 #define IPV4_REMOVE_WORD_FROM_CHECKSUM(_checksum, _word) htons(~ ( (~ntohs(_checksum)) - ((_word) & 0xffff) ))
 
 /* ip_header.c */
-// deprecated
-inline u_int16_t calc_ipv4_checksum(u_int16_t *h, int shortcount);
-
 inline u_int16_t ipv4_checksum(void *buf, size_t len);
 
 inline void ipv4_genHeader(struct IPv4_Header *h, u_int16_t packetLength,

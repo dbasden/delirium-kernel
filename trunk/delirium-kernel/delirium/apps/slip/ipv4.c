@@ -65,7 +65,9 @@ void ipv4_checksum_and_send(message_t msg) {
 
 
 void ipv4_handle_inbound_icmp(message_t msg) {
+	#if 0
 	IPv4_DEBUG_print("[ip] ipv4_handle_inbound_icmp: received ICMP packet\n");
+	#endif
 	
 	struct IPv4_Header * iphead = msg.m.gestalt.gestalt;
 	size_t ip_header_size;
@@ -75,13 +77,17 @@ void ipv4_handle_inbound_icmp(message_t msg) {
 	u_int16_t checksum = ipv4_checksum(icmphead, (msg.m.gestalt.length-ip_header_size));
 	if (checksum != 0) {
 		IPv4_DEBUG_print("[ip] ipv4_handle_inbound_icmp: Invalid ICMP checksum. discarding\n");
+		#ifdef IPv4_DEBUG
 		discard_silently(msg); return;
+		#endif
 	}
 
+	IPv4_Address tmp = iphead->destination;
 	switch (icmphead->type) {
-		case (IPV4_ICMP_ECHO):
+		#if 0
 			IPv4_DEBUG_print("[ip] ipv4_handle_inbound_icmp: Echo request. Responding...\n");
-			IPv4_Address tmp = iphead->destination;
+		#endif
+		case (IPV4_ICMP_ECHO):
 			iphead->destination = iphead->source;
 			iphead->source = tmp;
 			icmphead->type = IPV4_ICMP_ECHO_REPLY;
@@ -109,7 +115,9 @@ void ipv4_handle_inbound_udp(message_t msg) {
 void ipv4_datalink_listener(message_t msg) {
 	if (msg.type != gestalt) return;
 
+#if 0
 	IPv4_DEBUG_print("[ip] ip_inbound_listener: got packet from datalink.\n"); 
+#endif
 
 	if (msg.m.gestalt.length < IPV4_MIN_HEADER_SIZE) {
 		IPv4_DEBUG_print("[ip] inbound_listener: truncated header. discarding\n");
@@ -133,10 +141,6 @@ void ipv4_datalink_listener(message_t msg) {
 	}
 	if (iphead->destination != ipv4_local_ip) {
 		IPv4_DEBUG_print("[ip] inbound_listener: packet not destined for us. discarding\n");
-		discard_silently(msg); return;
-	}
-	if (iphead->ttl == 0) {
-		IPv4_DEBUG_print("[ip] inbound_listener: packet with TTL 0. Errrrr. Should do something here. Like ICMP. Doh\n");
 		discard_silently(msg); return;
 	}
 	if (ntohs(iphead->total_length) != msg.m.gestalt.length) {
