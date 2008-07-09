@@ -4,6 +4,7 @@
 #include <rant.h>
 #include <i386/interrupts.h>
 #include <i386/io.h>
+#include <assert.h>
 
 #include "delibrium/delibrium.h"
 #include "delibrium/serial.h"
@@ -55,6 +56,9 @@ void datalink_listener(message_t msg) {
 		else
 			print("[slip] datalink_listener got empty gestalt message\n");
 		#endif
+		/* We need to release the memory for the packet */
+		assert (msg.m.gestalt.length <= PAGE_SIZE);
+		freepage(msg.m.gestalt.gestalt);
 	}
 	#ifdef SLIPDEBUG
 	else {
@@ -120,7 +124,7 @@ void slip_on_receive_interrupt() {
 	if (slip_inbound_framesize == PAGE_SIZE) 
 		sendframe = 1;
 
-	if (sendframe) {
+	if (sendframe && slip_inbound_framesize != 0) {
 		msg.type = gestalt;
 		msg.m.gestalt.length = slip_inbound_framesize;
 		msg.m.gestalt.gestalt = (void *)slip_inbound_frame;
