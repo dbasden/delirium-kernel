@@ -43,6 +43,28 @@ inline u_int16_t ipv4_checksum(void *buf, size_t len) {
 	return (~csum) & 0xffff;
 }
 
+/* Compute the TCP checksum including the pseudo header 
+ * buf is the pointer to the start of the TCP header
+ */
+inline u_int16_t ipv4_tcp_checksum(IPv4_Address src, IPv4_Address dest, void *buf, size_t len) {
+	u_int32_t csum = 0;
+
+	csum = ipv4_checksum(buf, len);
+	csum = (~csum) & 0xffff;
+
+	csum += src >> 16;
+	csum += src & 0xffff;
+	csum += dest >> 16;
+	csum += dest & 0xffff;
+	csum += htons(IPV4_PROTO_TCP);
+	csum += htons(len);
+
+	while ((csum >> 16) != 0)
+		csum = (csum & 0xffff) + (csum >> 16);
+
+	return (~csum) & 0xffff;
+}
+
 inline void ipv4_genHeader(struct IPv4_Header *h, u_int16_t packetLength,
 				u_int8_t ttl, u_int8_t protocol, u_int16_t identity,
 				IPv4_Address source, IPv4_Address destination,

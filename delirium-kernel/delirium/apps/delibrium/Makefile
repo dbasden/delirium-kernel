@@ -2,7 +2,7 @@ include ../Makefile.app
 
 CFLAGS+=-I../../include
 
-DELIBRIUM_OBJS=lib.o thread.o serial.o paging.o pool.o
+DELIBRIUM_OBJS=lib.o thread.o serial.o paging.o pool.o timer.o
 DLIB_OBJS=memherd.o
 
 default: delibrium.o libdelibrium.a

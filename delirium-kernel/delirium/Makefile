@@ -26,10 +26,13 @@ KERNOBJS+=kernel/debug.o
 endif
 
 
-default: kern-${ARCH} apps symtab
+default: kern-${ARCH} apps symtab ctags
 
 symtab:
 	nm ./kern-${ARCH} | awk '{print $$1 " " $$3}' > syms
+
+ctags:
+	ctags -R
 
 apps: _apps
 

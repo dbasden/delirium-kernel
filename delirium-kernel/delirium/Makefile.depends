@@ -19,6 +19,26 @@
 ./apps/lib/vga/vga_modes.o: ./include/delirium.h ./apps/lib/vga/vga.h
 ./apps/lib/vga/vga_modes.o: ./include/delirium.h ./apps/lib/vga/vga.h
 ./apps/life/life.o: ./include/delirium.h
+./apps/slip/tcp.o: ./include/assert.h ./include/delirium.h ./include/klib.h
+./apps/slip/tcp.o: ./include/ipc.h ./include/dlib/cqueue.h
+./apps/slip/tcp.o: ./include/soapbox.h ./include/rant.h ./apps/slip/tcp.h
+./apps/slip/tcp.o: ./apps/slip/ipv4.h
+./apps/slip/tcp.o: ./include/delirium.h ./include/soapbox.h ./include/ipc.h
+./apps/slip/tcp.o: ./include/dlib/cqueue.h ./apps/slip/ipv4.h
+./apps/slip/ip_header.o: ./include/delirium.h ./apps/slip/ipv4.h
+./apps/slip/ip_header.o: ./apps/slip/ipv4_icmp.h
+./apps/slip/ipv4_icmp.o: ./apps/slip/ipv4.h ./include/delirium.h
+./apps/slip/ipv4.o: ./include/delirium.h ./include/ipc.h
+./apps/slip/ipv4.o: ./include/dlib/cqueue.h ./include/soapbox.h
+./apps/slip/ipv4.o: ./include/rant.h ./include/i386/interrupts.h
+./apps/slip/ipv4.o: ./include/i386/io.h ./apps/slip/ipv4.h
+./apps/slip/ipv4.o: ./apps/slip/ipv4_icmp.h ./apps/slip/tcp.h
+./apps/slip/ipv4.o: ./include/delirium.h
+./apps/slip/slip.o: ./include/delirium.h ./include/ipc.h
+./apps/slip/slip.o: ./include/dlib/cqueue.h ./include/soapbox.h
+./apps/slip/slip.o: ./include/rant.h ./include/i386/interrupts.h
+./apps/slip/slip.o: ./include/i386/io.h ./include/assert.h ./include/klib.h
+./apps/slip/slip.o: ./apps/slip/slip.h ./apps/slip/ipv4.h
 ./apps/test/test.o: ./include/delirium.h ./include/assert.h ./include/klib.h
 ./apps/test/test.o: ./include/stdarg.h ./include/cpu.h ./include/i386/cpu.h
 ./apps/test/test.o: ./include/ipc.h ./include/dlib/cqueue.h
@@ -31,9 +51,18 @@
 ./apps/life2/life2.o: ./include/delirium.h
 ./apps/crt0.o: ./include/i386/interrupts.h ./include/delirium.h
 ./apps/delibrium/lib.o: ./include/delirium.h ./include/stdarg.h
+./apps/delibrium/timer.o: ./include/delirium.h
 ./apps/delibrium/ipv4.o: ./include/delirium.h
+./apps/delibrium/pool.o: ./include/delirium.h ./include/cpu.h
+./apps/delibrium/pool.o: ./include/i386/cpu.h ./include/assert.h
+./apps/delibrium/pool.o: ./include/klib.h ./include/paging.h
+./apps/delibrium/pool.o: ./include/i386/paging.h
+./apps/delibrium/pool.o: ./apps/delibrium/dlib/memherd.h
+./apps/delibrium/pool.o: ./apps/delibrium/dlib/bitvec.h
 ./apps/delibrium/delibrium.o: ./include/delirium.h ./include/stdarg.h
 ./apps/delibrium/serial.o: ./include/delirium.h ./include/i386/io.h
+./apps/delibrium/serial.o: ./apps/delibrium/serial.h
+./apps/delibrium/serial.o: ./include/i386/io.h ./include/delirium.h
 ./apps/delibrium/thread.o: ./include/delirium.h ./include/multitask.h
 ./apps/delibrium/thread.o: ./include/i386/task.h ./include/i386/gdt.h
 ./apps/delibrium/thread.o: ./include/i386/paging.h ./include/dlib/queue.h
@@ -53,9 +82,6 @@
 ./arch/xen/setup.o: ./include/i386/cpu.h ./include/i386/mem.h
 ./arch/xen/setup.o: ./include/i386/interrupts.h ./include/i386/pic.h
 ./arch/xen/boot.o: ./include/elfnote.h ./arch/xen/hypercall_gate.S
-./arch/xen/include/hypercalls.o: ./arch/xen/include/xen/public/xen.h
-./arch/xen/include/hypercalls.o: ./arch/xen/include/xen/public/xen-compat.h
-./arch/xen/include/hypercalls.o: ./arch/xen/include/xen/public/arch-x86_32.h
 ./arch/i386/cpu.o: ./include/i386/gdt.h ./include/delirium.h
 ./arch/i386/cpu.o: ./include/i386/interrupts.h
 ./arch/i386/mem.o: ./include/delirium.h ./include/i386/task.h
@@ -119,15 +145,16 @@
 ./kernel/kvga.o: ./include/cpu.h ./include/i386/cpu.h ./include/kvga.h
 ./kernel/pool.o: ./include/delirium.h ./include/cpu.h ./include/i386/cpu.h
 ./kernel/pool.o: ./include/assert.h ./include/klib.h ./include/paging.h
-./kernel/pool.o: ./include/i386/paging.h ./include/dlib/memherd.h
-./kernel/pool.o: ./include/dlib/bitvec.h
+./kernel/pool.o: ./include/i386/paging.h ./apps/delibrium/dlib/memherd.h
+./kernel/pool.o: ./apps/delibrium/dlib/bitvec.h
 ./kernel/rant.o: ./include/delirium.h ./include/assert.h ./include/klib.h
 ./kernel/rant.o: ./include/cpu.h ./include/i386/cpu.h ./include/paging.h
 ./kernel/rant.o: ./include/i386/paging.h ./include/soapbox.h ./include/ipc.h
 ./kernel/rant.o: ./include/dlib/cqueue.h ./include/rant.h
-./kernel/rant.o: ./include/dlib/memherd.h ./include/dlib/bitvec.h
-./kernel/rant.o: ./include/dlib/queue.h ./include/multitask.h
-./kernel/rant.o: ./include/i386/task.h ./include/i386/gdt.h
+./kernel/rant.o: ./apps/delibrium/dlib/memherd.h
+./kernel/rant.o: ./apps/delibrium/dlib/bitvec.h ./include/dlib/queue.h
+./kernel/rant.o: ./include/multitask.h ./include/i386/task.h
+./kernel/rant.o: ./include/i386/gdt.h
 ./kernel/soapbox.o: ./include/delirium.h ./include/dlib/map.h
 ./kernel/soapbox.o: ./include/dlib/bsearchtree.h ./include/dlib/btree.h
 ./kernel/soapbox.o: ./include/cpu.h ./include/i386/cpu.h ./include/paging.h
@@ -159,9 +186,9 @@
 ./include/dlib/bsearchtree.o: ./include/dlib/bsearchtree.h
 ./include/dlib/bsearchtree.o: ./include/dlib/btree.h
 ./include/dlib/memherd.o: ./include/assert.h ./include/delirium.h
-./include/dlib/memherd.o: ./include/klib.h ./include/dlib/bitvec.h
+./include/dlib/memherd.o: ./include/klib.h ./apps/delibrium/dlib/bitvec.h
 ./include/dlib/memherd.o: ./include/dlib/memherd.h
-./include/dlib/memherd.o: ./include/dlib/bitvec.h
+./include/dlib/memherd.o: ./apps/delibrium/dlib/bitvec.h
 ./include/kallz.o: ./include/delirium.h
 ./include/multitask.o: ./include/i386/task.h ./include/delirium.h
 ./include/multitask.o: ./include/i386/gdt.h ./include/i386/paging.h
