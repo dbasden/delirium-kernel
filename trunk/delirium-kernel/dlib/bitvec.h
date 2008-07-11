@@ -9,8 +9,10 @@
  * David Basden <davidb-delirium@rcpt.to>
  */
 
+#ifndef __INT_TYPES_DEFINED
 #ifndef u_int32_t
 typedef unsigned int u_int32_t;
+#endif
 #endif
 typedef 	u_int32_t *	bitvec_t;
 

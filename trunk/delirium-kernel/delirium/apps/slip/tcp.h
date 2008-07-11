@@ -3,6 +3,7 @@
 
 #include <delirium.h>
 #include <soapbox.h>
+#include <ipc.h>
 #include "ipv4.h"
 #include "delibrium/dlib/queue.h"
 
@@ -14,7 +15,7 @@ struct TCP_Header {
 	u_int16_t	destination_port;
 	u_int32_t	sequence_num;
 	u_int32_t	ack_num;
-	u_int8_t	data_offset; /* Low nibble: reserved */
+	u_int8_t	header_len; /* Low nibble: reserved */
 	u_int8_t	flags; /* High bits: reserved */
 	u_int16_t	window;
 	u_int16_t	checksum;
@@ -22,13 +23,28 @@ struct TCP_Header {
 	/* options can be added, but must be 0 padded to 32 bytes */
 } __packme;
 
+#define TCP_MIN_HEADER_SIZE 20
+
+// todo
+struct TCP_Pseudo_Header {
+};
+
 #define TCP_OPTION_END		0
 #define TCP_OPTION_NOOP		1
 #define TCP_OPTION_MSS		2
 
+#define TCP_FLAG_NONE	0
+#define TCP_FLAG_FIN	0x01
+#define TCP_FLAG_SYN	0x02
+#define TCP_FLAG_RST	0x04
+#define TCP_FLAG_PSH	0x08
+#define TCP_FLAG_ACK	0x10
+#define TCP_FLAG_URG	0x20
+
 typedef enum {
 	listen, syn_sent, syn_received, established, fin_wait_1, fin_wait_2,
-	close_wait, closing, last_ack, time_wait, closed
+	close_wait, closing, last_ack, time_wait,  /* from RFC 793 */
+	closed, allocated  /* internal states for connection table */
 } tcp_connection_state_t;
 
 /* Really just a note to self */
@@ -37,6 +53,8 @@ typedef enum {
 } tcp_event_t;
 
 #define TCPIP_PACKET_SIZE	4096
+
+#define TCP_DEFAULT_TTL		128
 
 /* Hardcoded maximum queued packets */
 #define MAX_TX_WINDOW_PACKETS	128
@@ -49,7 +67,7 @@ typedef struct {
 	IPv4_Address	remote_addr;
 	u_int16_t	local_port;
 	u_int16_t	remote_port;
-} tcp_connection_t;
+} __packme tcp_connection_t;
 
 /* Use macros in queue.h for a linked queue for the windows
  *
@@ -89,7 +107,8 @@ typedef struct {
 
 typedef struct {
 	tcp_connection_t	endpoints;
-	soapbox_id_t		application_soapbox;
+	soapbox_id_t		soapbox_from_application;
+	soapbox_id_t		soapbox_to_application;
 	tcp_connection_state_t	current_state;
 	tcp_receiver_state_t	rx;
 	tcp_transmitter_state_t	tx;
@@ -100,5 +119,8 @@ typedef struct {
 
 /* Setup TCP state etc. */
 void tcp_init();
+
+/* Hooks for IPv4 */
+void handle_inbound_tcp(message_t msg);
 
 #endif

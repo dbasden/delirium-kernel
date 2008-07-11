@@ -6,6 +6,7 @@
  * Some assumptions are made that the arch is using little-endian. Not many.
  */
 #include <delirium.h>
+#include <rant.h>
 
 #define IPV4_PROTO_ICMP		1
 #define IPV4_PROTO_TCP		6
@@ -14,6 +15,8 @@
 #define __packme	__attribute__ ((packed))
 
 typedef size_t IPv4_Address;
+
+extern IPv4_Address ipv4_local_ip;
 
 /* Network byte order */
 struct IPv4_Header {
@@ -38,7 +41,7 @@ struct IPv4_Header {
 #define IPV4_OCTET_TO_ADDR(_a,_b,_c,_d) (((_d) <<24 ) | ((_c)<<16) |((_b)<<8) | (_a))
 #define htons(_i)	( ((_i) & 0xff00) >>8 | ((_i) & 0xff) << 8)
 #define htonl(_i)	( ( ((_i) & 0xff000000) >> 24) | ( ((_i) & 0x00ff0000) >> 8) | \
-			  ( ((_i) & 0x00000f00) << 8)  | ( ((_i) & 0x000000ff) << 24) )
+			  ( ((_i) & 0x0000ff00) << 8)  | ( ((_i) & 0x000000ff) << 24) )
 #define ntohs(_i)	htons(_i)
 #define ntohl(_i)	htonl(_i)
 
@@ -51,6 +54,7 @@ struct IPv4_Header {
 
 /* ip_header.c */
 inline u_int16_t ipv4_checksum(void *buf, size_t len);
+inline u_int16_t ipv4_tcp_checksum(IPv4_Address src, IPv4_Address dest, void *buf, size_t len);
 
 inline void ipv4_genHeader(struct IPv4_Header *h, u_int16_t packetLength,
 				u_int8_t ttl, u_int8_t protocol, u_int16_t identity,
@@ -61,6 +65,7 @@ void ipv4_header_dump(struct IPv4_Header *h);
 
 /* ipv4.c */
 void ipv4_init(IPv4_Address ip);
+void ipv4_checksum_and_send(message_t msg);
 
 #endif
 

@@ -58,6 +58,7 @@ void ipv4_checksum_and_send(message_t msg) {
 		discard_silently(msg);
 		return;
 	}
+	iphead->total_length = htons(msg.m.gestalt.length);
 	iphead->header_checksum = 0;
 	iphead->header_checksum = ipv4_checksum(iphead, headerlen);
 	send_to_datalink(msg);
@@ -104,10 +105,13 @@ void ipv4_handle_inbound_icmp(message_t msg) {
 	}
 	discard_silently(msg); // stub
 }
+
+#if 0
 void ipv4_handle_inbound_tcp(message_t msg) {
 	IPv4_DEBUG_print("[ip] ipv4_handle_inbound_icmp: received TCP packet\n");
 	discard_silently(msg); // stub
 }
+#endif
 void ipv4_handle_inbound_udp(message_t msg) {
 	IPv4_DEBUG_print("[ip] ipv4_handle_inbound_icmp: received UDP packet\n");
 	discard_silently(msg); // stub
@@ -163,7 +167,7 @@ void ipv4_datalink_listener(message_t msg) {
 			ipv4_handle_inbound_icmp(msg);
 			return;
 		case (IPV4_PROTO_TCP):
-			ipv4_handle_inbound_tcp(msg);
+			handle_inbound_tcp(msg); /* tcp.c */
 			return;
 		case (IPV4_PROTO_UDP):
 			ipv4_handle_inbound_udp(msg);
