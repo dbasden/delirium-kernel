@@ -8,11 +8,9 @@
 #include <delirium.h>
 #include <stdarg.h>
 
-void memcpy(char *dest, char *src, unsigned int count) {
-	unsigned int i;
-
-	for (i=0; i<count; i++)
-		dest[i] = src[i];
+void memcpy(void *dest, void *src, size_t count) {
+	while (count--)
+		*((u_int8_t *)dest++) = *((u_int8_t *)src++);
 }
 
 

@@ -13,7 +13,7 @@
 #include <delirium.h>
 #include <stdarg.h>
 
-void memcpy(char *dest, char *src, unsigned int count);
+void memcpy(void *dest, void *src, size_t count);
 void memset(char *mem, char byte, size_t count);
 void memstamp(char *mem, char *stamp, unsigned int stamplen, unsigned int count);
 size_t strlen(char *str);

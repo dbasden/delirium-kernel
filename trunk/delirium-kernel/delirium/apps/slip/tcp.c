@@ -15,7 +15,7 @@
 
 #define TCPDEBUG
 #ifdef TCPDEBUG
-#define TCPDEBUG_print(_s)	{print((char *) __FUNCTION__); print(_s);}
+#define TCPDEBUG_print(_s)	{print("[tcp] "); print( (char *) __func__ ); print(": " _s);}
 #else
 #define TCPDEBUG_print(_s)
 #endif
@@ -46,7 +46,7 @@ static inline void free_packet_memory(message_t msg) {
 }
 /* Discard a packet without notification */
 static inline void discard_silently(message_t msg) {
-	TCPDEBUG_print("[tcp] discard_silently: Dropping packet\n");
+	TCPDEBUG_print("Dropping packet\n");
 	free_packet_memory(msg);
 }
 
@@ -65,7 +65,7 @@ static inline tcp_state_t * get_free_connection() {
 			return connection_table[i];
 		}
 	}
-	return NULL; // precondition violated
+	return NULL;
 }
 
 /* given an inbound TCP packet, find the matching connection if one exists
@@ -203,6 +203,7 @@ static inline void rst_unknown_packet(message_t msg) {
 		seq = tcphead->ack_num; 
 	} else { 
 		ack = ntohl(tcphead->sequence_num);
+		ack += msg.m.gestalt.length - IPV4_EXTRACT_HEADERLEN(iphead) - TCP_EXTRACT_HEADERLEN(tcphead);
 		if (tcphead->flags & (TCP_FLAG_SYN | TCP_FLAG_FIN))
 			++ack;	/* SYN and FIN occupy 1 sequence # */
 		ack = htonl(ack);
@@ -218,9 +219,79 @@ static inline void rst_unknown_packet(message_t msg) {
 	tcphead->checksum =  ipv4_tcp_checksum(endpoints.local_addr, endpoints.remote_addr, tcphead, TCP_MIN_HEADER_SIZE);
 	msg.m.gestalt.length = IPV4_MIN_HEADER_SIZE  + TCP_MIN_HEADER_SIZE;
 
-	TCPDEBUG_print("[tcp] rst_unknown_packet: sending RST\n");
+	TCPDEBUG_print("sending RST\n");
 
 	ipv4_checksum_and_send(msg);
+}
+
+/* **********************************************************************  */
+
+/* Received packet event handlers */
+
+/* Packet metadata */
+typedef struct {
+	struct IPv4_Header *iphead;
+	struct TCP_Header *tcphead;
+	void *tcpoptions;
+	void *tcpdata;
+	u_int32_t packetlen;
+	u_int32_t ipheaderlen;
+	u_int32_t tcpheaderlen;
+} tcp_packetinfo_t;
+
+static inline void handle_listen_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
+	tcp_state_t * newtcpc;
+
+	TCPDEBUG_print("Entry\n");
+	/* Only state change for SYN packets */
+	if (!(p.tcphead->flags & TCP_FLAG_SYN))  {
+		TCPDEBUG_print("No SYN on packet\n");
+		rst_unknown_packet(msg); return;
+	}
+	TCPDEBUG_print("SYN set on packet\n");
+
+	/* Don't state change for packets that have ACK, RST or FIN set */
+	if (p.tcphead->flags & (TCP_FLAG_ACK | TCP_FLAG_RST | TCP_FLAG_FIN))  {
+		TCPDEBUG_print("extra flags set on packet\n");
+		rst_unknown_packet(msg); return;
+	}
+
+	/* Duplicate the TCP state for the new connection */
+	newtcpc = get_free_connection();
+	if (newtcpc == NULL) {
+		TCPDEBUG_print("Couldn't get a new free connection slot. Sending RST.\n");
+		rst_unknown_packet(msg);
+		return;
+	}
+	TCPDEBUG_print("Fall through.\n");
+
+	memcpy(newtcpc, tcpc, sizeof(tcp_state_t));
+	newtcpc->txwindow.head = NULL;
+	newtcpc->txwindow.tail = NULL;
+	newtcpc->current_state = allocated;
+
+	newtcpc->current_state = closed;
+	rst_unknown_packet(msg);
+}
+
+static inline void handle_syn_rcvd_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
+	TCPDEBUG_print("stub\n"); discard_silently(msg); 
+}
+
+static inline void handle_syn_sent_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
+	TCPDEBUG_print("stub\n"); discard_silently(msg); 
+}
+
+static inline void handle_established_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
+	TCPDEBUG_print("stub\n"); discard_silently(msg); 
+}
+
+static inline void handle_passive_close_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
+	TCPDEBUG_print("stub\n"); discard_silently(msg); 
+}
+
+static inline void handle_active_close_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
+	TCPDEBUG_print("stub\n"); discard_silently(msg); 
 }
 
 /* Process TCP/IP packets from the outside world.
@@ -228,22 +299,60 @@ static inline void rst_unknown_packet(message_t msg) {
  */
 void handle_inbound_tcp(message_t msg) {
 	tcp_state_t * tcpc;
-	struct IPv4_Header * iphead = msg.m.gestalt.gestalt;
+	tcp_packetinfo_t p;
 
-	assert(msg.type == gestalt);
+	assert(msg.type == gestalt); /* Probably a bit late :-) */
 
-	TCPDEBUG_print("[tcp] handle_inbound_tcp: received TCP packet\n");
+	/* store some packet metadata.
+	 * remember that this isn't bounds checked etc.
+	 */
+	p.packetlen = msg.m.gestalt.length;
+	p.iphead = msg.m.gestalt.gestalt;
+	p.ipheaderlen = IPV4_EXTRACT_HEADERLEN(p.iphead);
+	p.tcphead = msg.m.gestalt.gestalt + p.ipheaderlen;
+	p.tcpheaderlen = TCP_EXTRACT_HEADERLEN(p.tcphead);
+	p.tcpoptions = msg.m.gestalt.gestalt + p.ipheaderlen + TCP_MIN_HEADER_SIZE;
+	p.tcpdata = msg.m.gestalt.gestalt + p.ipheaderlen + p.tcpheaderlen;
 
-	tcpc = match_tcp_connection(iphead);
+	TCPDEBUG_print("received TCP packet\n");
+
+	if (ipv4_tcp_checksum(p.iphead->source, p.iphead->destination, p.tcphead, p.packetlen - p.ipheaderlen) != 0) {
+		TCPDEBUG_print("bad TCP checksum\n");
+		discard_silently(msg);
+	}
+
+	tcpc = match_tcp_connection(p.iphead);
 	if (tcpc == NULL) {
-		TCPDEBUG_print("[tcp] unknown destination\n");
 		rst_unknown_packet(msg);
 		return;
 	}
 
-//static inline tcp_state_t * match_tcp_connection(struct IPv4_Header *iphead) {
-	discard_silently(msg); // stub
+	switch (tcpc->current_state) {
+		case closed:
+		case allocated:
+			rst_unknown_packet(msg); return;
+		case listen:
+			handle_listen_inbound(tcpc, msg, p); return;
+		case syn_received:
+			handle_syn_rcvd_inbound(tcpc, msg, p); return;
+		case syn_sent:
+			handle_syn_sent_inbound(tcpc, msg, p); return;
+		case established:
+			handle_established_inbound(tcpc, msg, p); return;
+		case close_wait:
+		case last_ack:
+			handle_passive_close_inbound(tcpc, msg, p); return;
+		case fin_wait_1:
+		case fin_wait_2:
+		case closing:
+		case time_wait:
+			handle_active_close_inbound(tcpc, msg, p); return;
+	}
+	assert(tcpc->current_state != tcpc->current_state); /* assert false */
+	discard_silently(msg);
 }
+
+
 
 /* ************************************************************************* */
 
