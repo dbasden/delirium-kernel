@@ -24,10 +24,7 @@ struct TCP_Header {
 } __packme;
 
 #define TCP_MIN_HEADER_SIZE 20
-
-// todo
-struct TCP_Pseudo_Header {
-};
+#define TCP_EXTRACT_HEADERLEN(_tcpheader_p) (( ((struct TCP_Header *)(_tcpheader_p))->header_len & 0xf0 ) >> 2)
 
 #define TCP_OPTION_END		0
 #define TCP_OPTION_NOOP		1
