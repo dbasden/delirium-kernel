@@ -115,7 +115,7 @@ static inline void * tcp_get_page() { return getpage(); }
  * All else are set to 0
  * Needed: 
  *   IP: total_length, identification, flags, header_checksum
- *   TCP: seq, ack, offset, flags, window, checksum, urg ptr
+ *   TCP: seq, ack, header_len (default set), flags, window, checksum, urg ptr
  */
 static inline void stub_fill_outbound_header(tcp_state_t *tcpc, void *packet_base) {
 	struct IPv4_Header *iphead = packet_base;
@@ -125,6 +125,7 @@ static inline void stub_fill_outbound_header(tcp_state_t *tcpc, void *packet_bas
 			0x40 + (IPV4_MIN_HEADER_SIZE / 4),
 			0, 0, 0, 0, 
 			TCP_DEFAULT_TTL, IPV4_PROTO_TCP,
+			0,
 			tcpc->endpoints.local_addr,
 			tcpc->endpoints.remote_addr };
 	*tcphead = (struct TCP_Header) {
@@ -141,7 +142,7 @@ static inline void empty_tcpip_header(void *packet_base) {
 			0x40 + (IPV4_MIN_HEADER_SIZE / 4),
 			0, 0, 0, 0, 
 			TCP_DEFAULT_TTL, IPV4_PROTO_TCP,
-			0, 0 };
+			0, 0, 0 };
 	*tcphead = (struct TCP_Header) {
 			0, 0, 0, 0, (TCP_MIN_HEADER_SIZE << 2) & 0xf0 , 0, 0 };
 }
@@ -224,20 +225,35 @@ static inline void rst_unknown_packet(message_t msg) {
 	ipv4_checksum_and_send(msg);
 }
 
+static inline void checksum_outbound_tcp(tcp_state_t * tcpc, message_t msg) {
+	struct TCP_Header * tcphead = (struct TCP_Header *)(msg.m.gestalt.gestalt + IPV4_MIN_HEADER_SIZE);
+	tcphead->checksum =  ipv4_tcp_checksum(tcpc->endpoints.local_addr, tcpc->endpoints.remote_addr, tcphead, TCP_MIN_HEADER_SIZE);
+}
+
+static message_t build_outbound_tcp_packet(tcp_state_t * tcpc, u_int32_t seq, u_int32_t ack,u_int16_t flags, u_int16_t window, u_int16_t urgent_ptr) {
+	message_t msg;
+	msg.type = gestalt;
+	msg.m.gestalt.gestalt = tcp_get_page();
+	msg.m.gestalt.length = IPV4_MIN_HEADER_SIZE + TCP_MIN_HEADER_SIZE;
+	struct IPv4_Header *iphead = msg.m.gestalt.gestalt;
+	struct TCP_Header *tcphead = msg.m.gestalt.gestalt + IPV4_MIN_HEADER_SIZE;
+
+	stub_fill_outbound_header(tcpc, iphead);
+	iphead->total_length = msg.m.gestalt.length;
+	tcphead->sequence_num = seq;
+	tcphead->ack_num = ack;
+	tcphead->flags = flags;
+	tcphead->window = window;
+	tcphead->urgent_pointer = urgent_ptr;
+	checksum_outbound_tcp(tcpc, msg);
+
+	return msg;
+}
+
 /* **********************************************************************  */
 
 /* Received packet event handlers */
 
-/* Packet metadata */
-typedef struct {
-	struct IPv4_Header *iphead;
-	struct TCP_Header *tcphead;
-	void *tcpoptions;
-	void *tcpdata;
-	u_int32_t packetlen;
-	u_int32_t ipheaderlen;
-	u_int32_t tcpheaderlen;
-} tcp_packetinfo_t;
 
 static inline void handle_listen_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
 	tcp_state_t * newtcpc;
@@ -253,7 +269,11 @@ static inline void handle_listen_inbound(tcp_state_t * tcpc, message_t msg, tcp_
 	/* Don't state change for packets that have ACK, RST or FIN set */
 	if (p.tcphead->flags & (TCP_FLAG_ACK | TCP_FLAG_RST | TCP_FLAG_FIN))  {
 		TCPDEBUG_print("extra flags set on packet\n");
-		rst_unknown_packet(msg); return;
+		if (p.tcphead->flags & TCP_FLAG_RST)
+			discard_silently(msg);
+		else
+			rst_unknown_packet(msg);
+		return;
 	}
 
 	/* Duplicate the TCP state for the new connection */
@@ -263,15 +283,36 @@ static inline void handle_listen_inbound(tcp_state_t * tcpc, message_t msg, tcp_
 		rst_unknown_packet(msg);
 		return;
 	}
-	TCPDEBUG_print("Fall through.\n");
-
 	memcpy(newtcpc, tcpc, sizeof(tcp_state_t));
 	newtcpc->txwindow.head = NULL;
 	newtcpc->txwindow.tail = NULL;
 	newtcpc->current_state = allocated;
 
-	newtcpc->current_state = closed;
-	rst_unknown_packet(msg);
+	/* TODO: check remote address isn't broadcast etc */
+	newtcpc->endpoints.remote_addr = p.iphead->source;
+	newtcpc->endpoints.remote_port = p.tcphead->source_port;
+	assert(newtcpc->endpoints.local_addr == p.iphead->destination);
+	assert(newtcpc->endpoints.local_port == p.tcphead->destination_port);
+
+	tcpc = newtcpc;
+
+	tcpc->rx.initial_seq = ntohl(p.tcphead->sequence_num);
+	tcpc->rx.seq_expected = tcpc->rx.initial_seq + 1;
+
+	/* TODO: Delay processing of any data in packet */
+	free_packet_memory(msg);
+
+	tcpc->tx.initial_seq = get_initial_sequence();
+	tcpc->tx.seq_next = tcpc->tx.initial_seq + 1;
+
+	TCPDEBUG_print("Sending SYN ACK\n");
+	message_t ack_packet = build_outbound_tcp_packet(tcpc, 
+				htonl(tcpc->tx.initial_seq), htonl(tcpc->rx.seq_expected), 
+				TCP_FLAG_SYN | TCP_FLAG_ACK, 0, 0);
+	ipv4_checksum_and_send(ack_packet);
+
+	TCPDEBUG_print("State change: allocated -> SYN_RECEIVED\n");
+	tcpc->current_state = syn_received;
 }
 
 static inline void handle_syn_rcvd_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {

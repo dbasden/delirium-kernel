@@ -114,6 +114,17 @@ typedef struct {
 	u_int16_t		mss;
 } __packme tcp_state_t;
 
+/* Packet metadata for tcp.h internal use */
+typedef struct {
+	struct IPv4_Header *iphead;
+	struct TCP_Header *tcphead;
+	void *tcpoptions;
+	void *tcpdata;
+	u_int32_t packetlen;
+	u_int32_t ipheaderlen;
+	u_int32_t tcpheaderlen;
+} tcp_packetinfo_t;
+
 /* Setup TCP state etc. */
 void tcp_init();
 
