@@ -299,11 +299,14 @@ static inline void handle_listen_inbound(tcp_state_t * tcpc, message_t msg, tcp_
 	tcpc->rx.initial_seq = ntohl(p.tcphead->sequence_num);
 	tcpc->rx.seq_expected = tcpc->rx.initial_seq + 1;
 
-	/* TODO: Delay processing of any data in packet */
+	/* TODO: 
+	 * - actually send packet to be processed by SYN_RECEIVED state handler is implied by RFC793
+	 */
 	free_packet_memory(msg);
 
 	tcpc->tx.initial_seq = get_initial_sequence();
 	tcpc->tx.seq_next = tcpc->tx.initial_seq + 1;
+	tcpc->tx.oldest_unack_seq = tcpc->tx.initial_seq;
 
 	TCPDEBUG_print("Sending SYN ACK\n");
 	message_t ack_packet = build_outbound_tcp_packet(tcpc, 
@@ -315,15 +318,137 @@ static inline void handle_listen_inbound(tcp_state_t * tcpc, message_t msg, tcp_
 	tcpc->current_state = syn_received;
 }
 
-static inline void handle_syn_rcvd_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
-	TCPDEBUG_print("stub\n"); discard_silently(msg); 
+/* given the header of an inbound TCP packet, and the TCP connection state
+ * return >0 iff the seq # is in our receive window
+ * otherwise return 0
+ */
+static int is_packet_in_rx_window(tcp_state_t * tcpc, tcp_packetinfo_t p) {
+	u_int32_t segseq = ntohl(p.tcphead->sequence_num);
+	u_int32_t rxwin_left = tcpc->rx.seq_expected;
+	u_int32_t rxwin_right = rxwin_left + tcpc->rx.window_size;
+	
+	/* Empty segment but seq as expected */
+	if (p.tcpdatalen == 0 && tcpc->rx.window_size == 0 
+	    && segseq == rxwin_left)
+	    	return 1;
+
+	/* Empty segment but seq within (non 0 sized) window */
+	if (p.tcpdatalen == 0 && tcpc->rx.window_size > 0 
+	    && segseq >= rxwin_left
+	    && segseq < rxwin_right)
+	    	return 1;
+
+	/* Data in segment with 0 sized window */
+	if (p.tcpdatalen > 0 && tcpc->rx.window_size == 0)
+		return 0;
+	
+	/* Data in segment and non-0 sized window */
+	if (p.tcpdatalen > 0 && tcpc->rx.window_size > 0) {
+		/* segseq within window */
+		if (segseq >= rxwin_left && segseq < rxwin_right)
+			return 1;
+	
+		if (segseq+p.tcpdatalen-1 >= rxwin_left 
+		    && segseq+p.tcpdatalen-1 < rxwin_right)
+			return 1;
+	}
+
+	return 0;
 }
 
-static inline void handle_syn_sent_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
-	TCPDEBUG_print("stub\n"); discard_silently(msg); 
+static inline void print_tcp_header(struct TCP_Header *tcphead) {
+	printf("tcphead<srcp=%u,dstp,%u,seq=%u,ack=%u,flags=0x%x(%c%c%c%c%c%c),win=%u,csum=0x%x,uptr=%u>\n",
+		ntohs(tcphead->source_port), ntohs(tcphead->destination_port),
+		ntohl(tcphead->sequence_num), ntohl(tcphead->ack_num), tcphead->flags,
+		(tcphead->flags & TCP_FLAG_URG) ? 'U' : '.',
+		(tcphead->flags & TCP_FLAG_ACK) ? 'A' : '.',
+		(tcphead->flags & TCP_FLAG_PSH) ? 'P' : '.',
+		(tcphead->flags & TCP_FLAG_RST) ? 'R' : '.',
+		(tcphead->flags & TCP_FLAG_SYN) ? 'S' : '.',
+		(tcphead->flags & TCP_FLAG_FIN) ? 'F' : '.',
+		ntohs(tcphead->window), ntohs(tcphead->checksum), ntohs(tcphead->urgent_pointer));
 }
 
 static inline void handle_established_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
+	TCPDEBUG_print("stub\n"); discard_silently(msg); 
+}
+
+static inline void handle_syn_rcvd_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
+	/* Make sure the packet falls within our acceptable rx window */
+	
+	if (! is_packet_in_rx_window(tcpc, p)) {
+		/* Not in TCP window. ACK RX (if not RST) and drop data */
+		TCPDEBUG_print("not in rx window. ACKing and dropping.");
+		if (! (p.tcphead->flags & TCP_FLAG_RST))  {
+			ipv4_checksum_and_send(
+				build_outbound_tcp_packet(tcpc,
+				htonl(tcpc->tx.seq_next), htonl(tcpc->rx.seq_expected),
+				TCP_FLAG_ACK, 0, 0)
+			);
+		}
+		else {
+			TCPDEBUG_print("(not ACKing due to RST)");
+		}
+			
+		discard_silently(msg);
+		return;
+	}
+
+	if (p.tcphead->flags & TCP_FLAG_SYN) {
+		/* SYN flag in TCP window invalud.
+		 * RFC1122 requires state change back to listen if we are passive
+		 */
+		/* TODO: Do this properly */
+		TCPDEBUG_print("SYN received in SYN_RECEIVED state. State change to CLOSED.\n");
+		tcpc->current_state = closed;
+		discard_silently(msg);
+		return;
+	}
+
+	if (! (p.tcphead->flags & TCP_FLAG_ACK)) {
+		/* No ACK flag. Discard */
+		TCPDEBUG_print("No ACK flag in SYN_RECEIVED state. Discarding.\n");
+		discard_silently(msg);
+		return;
+	}
+
+	/* ARG! This equality might be reversed */
+	if (ntohl(p.tcphead->ack_num) > tcpc->tx.seq_next || 
+	    tcpc->tx.oldest_unack_seq > ntohl(p.tcphead->ack_num)  ) {
+
+	    /* Hmmm. Unexplained (or at least incorrect) ACK. RFC 793 
+	     * says we send an RST (I think. It reads weirdly there.
+	     * Or I'm under caffeinated.) */
+		rst_unknown_packet(msg);
+		return;
+		
+	}
+
+	/* RFC 1122: State change to ESTABLISHED, set :
+	 *
+	 * SND.WND <- SEG.WND
+	 * SND.WL1 <- SEG.SEQ
+	 * SND.WL2 <- SEG.ACK
+	 */ 
+
+	/* Set the transmit window size based on what we have been told from 
+	 * the remote end */
+	tcpc->tx.window_size = ntohl(p.tcphead->window);
+
+	/* Update the stored seq and ack from the same segment */
+	tcpc->tx.last_win_seg_seq = ntohl(p.tcphead->sequence_num);
+	tcpc->tx.last_win_seg_ack = ntohl(p.tcphead->ack_num);
+
+	/* RFC 793 says 'Continue processing' the packet. 
+	 * We'll just feed it into the ESTABLISHED state packet handler
+	 */
+	tcpc->current_state = established;
+	TCPDEBUG_print("State change: SYN_RECEIVED -> ESTABLISHED\n");
+	TCPDEBUG_print("chaining packet into ESTABLISHED packet handler");
+	handle_established_inbound(tcpc, msg, p);
+}
+
+static inline void handle_syn_sent_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
 	TCPDEBUG_print("stub\n"); discard_silently(msg); 
 }
 
@@ -354,8 +479,13 @@ void handle_inbound_tcp(message_t msg) {
 	p.tcpheaderlen = TCP_EXTRACT_HEADERLEN(p.tcphead);
 	p.tcpoptions = msg.m.gestalt.gestalt + p.ipheaderlen + TCP_MIN_HEADER_SIZE;
 	p.tcpdata = msg.m.gestalt.gestalt + p.ipheaderlen + p.tcpheaderlen;
+	p.tcpdatalen = p.packetlen - p.ipheaderlen - p.tcpheaderlen;
 
 	TCPDEBUG_print("received TCP packet\n");
+
+	#ifdef TCPDEBUG
+	print_tcp_header(p.tcphead);
+	#endif
 
 	if (ipv4_tcp_checksum(p.iphead->source, p.iphead->destination, p.tcphead, p.packetlen - p.ipheaderlen) != 0) {
 		TCPDEBUG_print("bad TCP checksum\n");

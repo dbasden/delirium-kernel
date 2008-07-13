@@ -85,7 +85,7 @@ typedef struct tcp_queue tcp_queue_t;
 typedef struct {
 	u_int32_t	initial_seq; 	/* IRS */
 	u_int32_t	seq_expected; 	/* RCV.NXT */
-	u_int16_t	window_size;	/* RCV.WND */
+	u_int32_t	window_size;	/* RCV.WND */
 	u_int16_t	urgent_ptr;	/* RCV.UP */
 } __packme tcp_receiver_state_t;
 
@@ -93,7 +93,7 @@ typedef struct {
 	u_int32_t	initial_seq; 		/* ISS */
 	u_int32_t	oldest_unack_seq;	/* SND.UNA */
 	u_int32_t	seq_next;		/* SND.NXT */
-	u_int16_t	window_size;		/* SND.WND */
+	u_int32_t	window_size;		/* SND.WND */
 	u_int16_t	urgent_ptr;		/* SND.UP */
 
 	/* from the segment used to generate the last window value */
@@ -123,6 +123,7 @@ typedef struct {
 	u_int32_t packetlen;
 	u_int32_t ipheaderlen;
 	u_int32_t tcpheaderlen;
+	u_int32_t tcpdatalen;
 } tcp_packetinfo_t;
 
 /* Setup TCP state etc. */
