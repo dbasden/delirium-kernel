@@ -51,7 +51,7 @@ typedef enum {
 
 #define TCPIP_PACKET_SIZE	4096
 
-#define TCP_DEFAULT_TTL		128
+#define TCP_DEFAULT_TTL		60
 
 /* Hardcoded maximum queued packets */
 #define MAX_TX_WINDOW_PACKETS	128
@@ -82,11 +82,14 @@ struct tcp_queue {
 } __packme;
 typedef struct tcp_queue tcp_queue_t;
 
+#define TCP_DEFAULT_PREFERRED_WINDOW_SIZE	65535
+
 typedef struct {
 	u_int32_t	initial_seq; 	/* IRS */
 	u_int32_t	seq_expected; 	/* RCV.NXT */
 	u_int32_t	window_size;	/* RCV.WND */
 	u_int16_t	urgent_ptr;	/* RCV.UP */
+	u_int32_t	preferred_window_size;
 } __packme tcp_receiver_state_t;
 
 typedef struct {

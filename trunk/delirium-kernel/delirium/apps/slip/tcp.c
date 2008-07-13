@@ -131,7 +131,8 @@ static inline void stub_fill_outbound_header(tcp_state_t *tcpc, void *packet_bas
 	*tcphead = (struct TCP_Header) {
 			tcpc->endpoints.local_port,
 			tcpc->endpoints.remote_port,
-			0, 0, (TCP_MIN_HEADER_SIZE << 2) & 0xf0, 0, 0, 0, 0 };
+			0, 0, (TCP_MIN_HEADER_SIZE << 2) & 0xf0, 0,
+			htons(tcpc->rx.window_size), 0, 0 };
 }
 
 static inline void empty_tcpip_header(void *packet_base) {
@@ -170,14 +171,30 @@ static tcp_state_t * create_new_listener(u_int16_t port, soapbox_id_t sb_from_ap
 	if (tcpc == NULL) return NULL; /* No free connections */
 	assert(tcpc->current_state == allocated);
 
+	tcpc->soapbox_from_application = sb_from_application;
+	tcpc->soapbox_to_application = sb_to_application;
 	tcpc->endpoints.local_addr = ipv4_local_ip;
 	tcpc->endpoints.remote_addr = 0;
 	tcpc->endpoints.local_port = port;
 	tcpc->endpoints.remote_port = 0;
+	tcpc->rx.preferred_window_size = TCP_DEFAULT_PREFERRED_WINDOW_SIZE;
 	tcpc->current_state = listen;
+
 
 	return tcpc;
 }
+
+/* cleanup a connection that has been reset */
+static void  cleanup_reset_connection(tcp_state_t * tcpc) {
+	tcpc->current_state = allocated;
+	tcpc->endpoints.local_addr = 0;
+	tcpc->endpoints.remote_addr = 0;
+	tcpc->endpoints.local_port = 0;
+	tcpc->endpoints.remote_port = 0;
+	tcpc->rx.preferred_window_size = TCP_DEFAULT_PREFERRED_WINDOW_SIZE;
+	tcpc->current_state = closed;
+}
+
 
 /* ************************************************************************* */
 
@@ -250,6 +267,17 @@ static message_t build_outbound_tcp_packet(tcp_state_t * tcpc, u_int32_t seq, u_
 	return msg;
 }
 
+/* Just send ... an ACK! */
+static inline void send_an_ack(tcp_state_t * tcpc) {
+	ipv4_checksum_and_send(
+		build_outbound_tcp_packet(tcpc,
+			htonl(tcpc->tx.seq_next),
+			htonl(tcpc->rx.seq_expected),
+			TCP_FLAG_ACK, htons(tcpc->rx.window_size), 0)
+	);
+}
+
+
 /* **********************************************************************  */
 
 /* Received packet event handlers */
@@ -258,13 +286,11 @@ static message_t build_outbound_tcp_packet(tcp_state_t * tcpc, u_int32_t seq, u_
 static inline void handle_listen_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
 	tcp_state_t * newtcpc;
 
-	TCPDEBUG_print("Entry\n");
 	/* Only state change for SYN packets */
 	if (!(p.tcphead->flags & TCP_FLAG_SYN))  {
 		TCPDEBUG_print("No SYN on packet\n");
 		rst_unknown_packet(msg); return;
 	}
-	TCPDEBUG_print("SYN set on packet\n");
 
 	/* Don't state change for packets that have ACK, RST or FIN set */
 	if (p.tcphead->flags & (TCP_FLAG_ACK | TCP_FLAG_RST | TCP_FLAG_FIN))  {
@@ -288,6 +314,9 @@ static inline void handle_listen_inbound(tcp_state_t * tcpc, message_t msg, tcp_
 	newtcpc->txwindow.tail = NULL;
 	newtcpc->current_state = allocated;
 
+	newtcpc->soapbox_from_application = tcpc->soapbox_from_application;
+	newtcpc->soapbox_to_application = tcpc->soapbox_to_application;
+
 	/* TODO: check remote address isn't broadcast etc */
 	newtcpc->endpoints.remote_addr = p.iphead->source;
 	newtcpc->endpoints.remote_port = p.tcphead->source_port;
@@ -308,10 +337,9 @@ static inline void handle_listen_inbound(tcp_state_t * tcpc, message_t msg, tcp_
 	tcpc->tx.seq_next = tcpc->tx.initial_seq + 1;
 	tcpc->tx.oldest_unack_seq = tcpc->tx.initial_seq;
 
-	TCPDEBUG_print("Sending SYN ACK\n");
 	message_t ack_packet = build_outbound_tcp_packet(tcpc, 
 				htonl(tcpc->tx.initial_seq), htonl(tcpc->rx.seq_expected), 
-				TCP_FLAG_SYN | TCP_FLAG_ACK, 0, 0);
+				TCP_FLAG_SYN | TCP_FLAG_ACK, htons(tcpc->rx.window_size), 0);
 	ipv4_checksum_and_send(ack_packet);
 
 	TCPDEBUG_print("State change: allocated -> SYN_RECEIVED\n");
@@ -357,9 +385,9 @@ static int is_packet_in_rx_window(tcp_state_t * tcpc, tcp_packetinfo_t p) {
 }
 
 static inline void print_tcp_header(struct TCP_Header *tcphead) {
-	printf("tcphead<srcp=%u,dstp,%u,seq=%u,ack=%u,flags=0x%x(%c%c%c%c%c%c),win=%u,csum=0x%x,uptr=%u>\n",
+	printf(" <sp=%u,dp=%u,seq=%u,ack=%u [%c%c%c%c%c%c] win=%u,csum=%4x,up=%u>\n",
 		ntohs(tcphead->source_port), ntohs(tcphead->destination_port),
-		ntohl(tcphead->sequence_num), ntohl(tcphead->ack_num), tcphead->flags,
+		ntohl(tcphead->sequence_num), ntohl(tcphead->ack_num),
 		(tcphead->flags & TCP_FLAG_URG) ? 'U' : '.',
 		(tcphead->flags & TCP_FLAG_ACK) ? 'A' : '.',
 		(tcphead->flags & TCP_FLAG_PSH) ? 'P' : '.',
@@ -370,27 +398,137 @@ static inline void print_tcp_header(struct TCP_Header *tcphead) {
 }
 
 static inline void handle_established_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
-	TCPDEBUG_print("stub\n"); discard_silently(msg); 
+	/* TODO: Queue out of order packets to be handled in sequence order when possible */
+
+	if (! is_packet_in_rx_window(tcpc, p)) {
+		TCPDEBUG_print("Segment not in rx window\n");
+		if (p.tcphead->flags & TCP_FLAG_RST)  
+			{ discard_silently(msg); return; }
+		send_an_ack(tcpc);
+		free_packet_memory(msg);
+		return;
+	}
+
+	/* segment is within rx window. Check for other weirdness */
+
+	if (p.tcphead->flags & (TCP_FLAG_RST | TCP_FLAG_SYN))  {
+		/* TODO: Notify application */
+		TCPDEBUG_print("RST or SYN received. Bad state. Resetting connection."); 
+		cleanup_reset_connection(tcpc);
+		discard_silently(msg);
+		return;
+	}
+	if (! (p.tcphead->flags & TCP_FLAG_ACK)) {
+		discard_silently(msg); /* ACK should have been set and wasn't */
+		return;
+	}
+
+	/* Update tx state based on segment ack field */
+	/* TODO: Fix 32-bit wraparound here (and elsewhere) */
+	u_int32_t seg_ack = ntohl(p.tcphead->ack_num);
+	u_int32_t seg_seq = ntohl(p.tcphead->sequence_num);
+	if (seg_ack > tcpc->tx.seq_next) {
+		/* Errr, how can you ack something we haven't sent? */
+		send_an_ack(tcpc);
+		free_packet_memory(msg);
+		return;
+	}
+	if (seg_ack > tcpc->tx.oldest_unack_seq) {
+		/* Yay. They've acked more stuff */
+		/* TODO: send more stuff */
+		tcpc->tx.oldest_unack_seq = seg_ack;
+	}
+
+	if (seg_ack >= tcpc->tx.oldest_unack_seq) {
+		/* Update the send window!
+		 *
+		 * Only update the send window based on a more recent
+		 * segment than last time. If the seq and ack are the
+		 * same, check anyhow; The remote might be opening up 
+		 * their window
+		 */
+		if ((seg_seq > tcpc->tx.last_win_seg_seq) || 
+		    ((seg_seq == tcpc->tx.last_win_seg_seq) && (seg_ack >= tcpc->tx.last_win_seg_ack)) ) {
+			/* update TX window state
+			 * Accept shrinking windows, even if caused by out of order packets :-( 
+			 */
+			tcpc->tx.window_size = ntohs(p.tcphead->window);
+			tcpc->tx.last_win_seg_seq = seg_seq;
+			tcpc->tx.last_win_seg_ack = seg_ack;
+		}
+	}
+
+	/* TODO: Check for URG flag, and deal with urgent pointer.
+	 * This is probably going to require DeLiRiuM rant queuing to
+	 * handle a queue-head push as well as the default tail append
+	 */
+
+	/* TODO: REMOVE THIS BAD BAD BAD HACK! */
+	if (p.tcphead->flags & (TCP_FLAG_FIN))  {
+		/* TODO: Notify application */
+		TCPDEBUG_print("FIN received. Resetting connection."); 
+		ipv4_checksum_and_send(
+			build_outbound_tcp_packet(tcpc,
+				htonl(tcpc->tx.seq_next),
+				htonl(seg_seq + 1),
+				TCP_FLAG_ACK | TCP_FLAG_FIN, htons(tcpc->rx.window_size), 0)
+		);
+		cleanup_reset_connection(tcpc);
+		free_packet_memory(msg);
+		return;
+	}
+
+	/* Process any data inside segment and send it to the user. Yay! 
+	 */ 
+	if (p.tcpdatalen > 0) {
+		if (tcpc->rx.seq_expected != seg_seq) {
+			TCPDEBUG_print("Erk! Out of order packet. Can't send to user.\n");
+			TCPDEBUG_print("Panicing and dropping. Also immediately ACKing to trigger fast retransmit\n");
+			send_an_ack(tcpc);
+			free_packet_memory(msg);
+			return;
+		}
+
+		if (tcpc->rx.window_size < p.tcpdatalen) {
+			assert(tcpc->rx.window_size > 0);
+			/* Blunt hack to ignore the data bigger than the window */
+			p.tcpdatalen = tcpc->rx.window_size;
+		}
+		tcpc->rx.window_size -= p.tcpdatalen;
+		tcpc->rx.seq_expected += p.tcpdatalen;
+
+		/* TODO: Update rx window size (correctly) 
+		 * WARNING: This logic mgiht be munted !!! */
+		if (tcpc->rx.window_size <= (tcpc->rx.preferred_window_size / 2))
+			tcpc->rx.window_size = tcpc->rx.preferred_window_size - tcpc->rx.window_size;
+
+		/* Shift down in memory and overwrite the headers. memcpy should deal iff dest < src 
+	 	 * Then just change the logical message length and queue it to the application.
+	 	 */
+		memcpy(msg.m.gestalt.gestalt, p.tcpdata, p.tcpdatalen); 
+		msg.m.gestalt.length = p.tcpdatalen;
+		rant(tcpc->soapbox_to_application, msg);
+	} 
+	else free_packet_memory(msg);
+
+	/* TODO: Don't just ack here. REALLY.
+	 * Should queue it for sending on the next TX event (timer or app generated)
+	 * as long as it's not >= 500ms away.
+	 */
+	send_an_ack(tcpc);
+	free_packet_memory(msg);
 }
 
 static inline void handle_syn_rcvd_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
 	/* Make sure the packet falls within our acceptable rx window */
 	
 	if (! is_packet_in_rx_window(tcpc, p)) {
-		/* Not in TCP window. ACK RX (if not RST) and drop data */
 		TCPDEBUG_print("not in rx window. ACKing and dropping.");
 		if (! (p.tcphead->flags & TCP_FLAG_RST))  {
-			ipv4_checksum_and_send(
-				build_outbound_tcp_packet(tcpc,
-				htonl(tcpc->tx.seq_next), htonl(tcpc->rx.seq_expected),
-				TCP_FLAG_ACK, 0, 0)
-			);
+			send_an_ack(tcpc);
 		}
-		else {
-			TCPDEBUG_print("(not ACKing due to RST)");
-		}
-			
-		discard_silently(msg);
+		else { TCPDEBUG_print("(not ACKing due to RST)"); }
+		free_packet_memory(msg);
 		return;
 	}
 
@@ -400,8 +538,8 @@ static inline void handle_syn_rcvd_inbound(tcp_state_t * tcpc, message_t msg, tc
 		 */
 		/* TODO: Do this properly */
 		TCPDEBUG_print("SYN received in SYN_RECEIVED state. State change to CLOSED.\n");
-		tcpc->current_state = closed;
 		discard_silently(msg);
+		cleanup_reset_connection(tcpc);
 		return;
 	}
 
@@ -412,7 +550,6 @@ static inline void handle_syn_rcvd_inbound(tcp_state_t * tcpc, message_t msg, tc
 		return;
 	}
 
-	/* ARG! This equality might be reversed */
 	if (ntohl(p.tcphead->ack_num) > tcpc->tx.seq_next || 
 	    tcpc->tx.oldest_unack_seq > ntohl(p.tcphead->ack_num)  ) {
 
@@ -439,12 +576,15 @@ static inline void handle_syn_rcvd_inbound(tcp_state_t * tcpc, message_t msg, tc
 	tcpc->tx.last_win_seg_seq = ntohl(p.tcphead->sequence_num);
 	tcpc->tx.last_win_seg_ack = ntohl(p.tcphead->ack_num);
 
+	/* open up the receive window :-) */
+	tcpc->rx.window_size = tcpc->rx.preferred_window_size;
+
+	tcpc->current_state = established;
+	TCPDEBUG_print("State change: SYN_RECEIVED -> ESTABLISHED\n");
+
 	/* RFC 793 says 'Continue processing' the packet. 
 	 * We'll just feed it into the ESTABLISHED state packet handler
 	 */
-	tcpc->current_state = established;
-	TCPDEBUG_print("State change: SYN_RECEIVED -> ESTABLISHED\n");
-	TCPDEBUG_print("chaining packet into ESTABLISHED packet handler");
 	handle_established_inbound(tcpc, msg, p);
 }
 
@@ -480,8 +620,6 @@ void handle_inbound_tcp(message_t msg) {
 	p.tcpoptions = msg.m.gestalt.gestalt + p.ipheaderlen + TCP_MIN_HEADER_SIZE;
 	p.tcpdata = msg.m.gestalt.gestalt + p.ipheaderlen + p.tcpheaderlen;
 	p.tcpdatalen = p.packetlen - p.ipheaderlen - p.tcpheaderlen;
-
-	TCPDEBUG_print("received TCP packet\n");
 
 	#ifdef TCPDEBUG
 	print_tcp_header(p.tcphead);
