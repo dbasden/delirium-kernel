@@ -18,10 +18,21 @@ typedef u_int32_t volatile	Semaphore;
 	({asm volatile ("lock movl $1, %0" :: "m" (_s) : "memory");})
 #define SPIN_WAIT_SEMAPHORE(_s)\
 	({asm volatile ("0:\tlock btr $0, %0\n\tjnc 0b" :: "m" (_s) : "memory");})
+#define SPIN_YIELD_SEMAPHORE(_s)\
+	({asm volatile ("0:\tlock btr $0, %0\n\tjc 1f\n\tint $0x42\n\tjmp 0b\n1:\tnop" :: "m" (_s) : "memory");})
+
+/* _dest = _src if (_dest == expected) */
+#define cmpxchg(_dest, _src, _expected) \
+	({u_int32_t _result; asm volatile ("\tlock cmpxchg %1,%2" : "=a"(_result) : "r"(_src), "m"(_dest), "0"(_expected) : "memory"  ); _result;})
+
+#define IA32_FLAG_INTERRUPT_ENABLE	0x00000200
+
+#define _INTERRUPTS_ENABLED()	(get_eflags() & IA32_FLAG_INTERRUPT_ENABLE)
 
 void setup_idt();
 void addHandler(u_int16_t idt_offset, void *handler);
 void enable_interrupts();
 void disable_interrupts();
+u_int32_t get_eflags();
 
 #endif

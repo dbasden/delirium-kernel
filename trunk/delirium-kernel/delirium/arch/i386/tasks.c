@@ -159,8 +159,10 @@ u_int32_t kill_current_thread(u_int32_t outgoing_esp) {
 	 * 	 be freed here, which may be the case for kthreads, but not enforced
 	 * 	 by the ABI
 	 */
+	kprint("<kill_current_thread");
 	kfreepage((void *) threads[brick_wall].ih_esp);
 	threads[brick_wall].state = dead;
+	kprint(">");
 
 	return new_esp;
 }

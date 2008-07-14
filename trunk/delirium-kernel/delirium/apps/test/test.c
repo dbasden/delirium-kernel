@@ -40,13 +40,17 @@ void rx_consumer(message_t msg) {
 		default: printf("Got unknown type %x]\n", msg.type);
 	}
 	printf("(disassociating consumer from %x)", msg.destination);
-	if (renounce(msg.destination) != msg.destination) printf("FAILED");
+	if (renounce(msg.destination) != msg.destination) printf("FAILED RENOUNCE!");
 }
 void test_consumer() {
 	soapbox_id_t c_soapbox;
 	soapbox_id_t ret;
 
 	c_soapbox = get_new_soapbox("tests/producer-consumer");
+	if (c_soapbox == 0) {
+		printf("%s: FAIL! couldn't create soapbox tests/producer-consumer!\n", __func__);
+		return;
+	}
 	printf("[consumer: got soapbox id %x]", c_soapbox);
 	ret = supplicate(c_soapbox, rx_consumer);
 	Assert(ret);
@@ -104,6 +108,17 @@ void dream() {
 
 	printf("Testing stdarg\n");
 	test_stdarg(5, 0, 1, 2, 3, 4, 5);
+
+	printf("Testing cmpxchg");
+	volatile int v;
+	int a;
+	v = 10;
+	a = cmpxchg(v, 20, 10);
+	printf("%d, %d\n", a,v);
+	a = cmpxchg(v, 50, 10);
+	printf("%d, %d\n", a,v);
+	a = cmpxchg(v, 50, 20);
+	printf("%d, %d\n", a,v);
 
 	printf("Testing interrupt handler\n");
 	asm volatile ( "INTO" );

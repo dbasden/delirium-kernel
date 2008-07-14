@@ -20,6 +20,10 @@
 #define TCPDEBUG_print(_s)
 #endif
 
+/* Obvious problem */
+#define _min(_a,_b)	(((_a) < (_b)) ? (_a) : (_b))
+
+
 #define TCP_MAX_CONNECTIONS	16
 
 static tcp_state_t * connection_table[TCP_MAX_CONNECTIONS];
@@ -178,6 +182,7 @@ static tcp_state_t * create_new_listener(u_int16_t port, soapbox_id_t sb_from_ap
 	tcpc->endpoints.local_port = port;
 	tcpc->endpoints.remote_port = 0;
 	tcpc->rx.preferred_window_size = TCP_DEFAULT_PREFERRED_WINDOW_SIZE;
+	tcpc->mss = TCP_DEFAULT_MSS; /* Until we know otherwise */
 	tcpc->current_state = listen;
 
 
@@ -192,6 +197,7 @@ static void  cleanup_reset_connection(tcp_state_t * tcpc) {
 	tcpc->endpoints.local_port = 0;
 	tcpc->endpoints.remote_port = 0;
 	tcpc->rx.preferred_window_size = TCP_DEFAULT_PREFERRED_WINDOW_SIZE;
+	tcpc->mss = TCP_DEFAULT_MSS;
 	tcpc->current_state = closed;
 }
 
@@ -494,16 +500,31 @@ static inline void handle_established_inbound(tcp_state_t * tcpc, message_t msg,
 			/* Blunt hack to ignore the data bigger than the window */
 			p.tcpdatalen = tcpc->rx.window_size;
 		}
-		tcpc->rx.window_size -= p.tcpdatalen;
-		tcpc->rx.seq_expected += p.tcpdatalen;
 
+		/* Update the receive window size as per RFC 1122 (4.2.3.3) */
+		if ( (tcpc->rx.preferred_window_size - tcpc->rx.window_size - p.tcpdatalen)  >=
+		     _min( tcpc->rx.preferred_window_size / 2, tcpc->mss) ) {
+			tcpc->rx.window_size = tcpc->rx.preferred_window_size - p.tcpdatalen;
+		}
+
+		#if 0
 		/* TODO: Update rx window size (correctly) 
 		 * WARNING: This logic mgiht be munted !!! */
 		if (tcpc->rx.window_size <= (tcpc->rx.preferred_window_size / 2))
 			tcpc->rx.window_size = tcpc->rx.preferred_window_size - tcpc->rx.window_size;
+		#endif
+
+		tcpc->rx.window_size -= p.tcpdatalen;
+		tcpc->rx.seq_expected += p.tcpdatalen;
+
 
 		/* Shift down in memory and overwrite the headers. memcpy should deal iff dest < src 
 	 	 * Then just change the logical message length and queue it to the application.
+	 	 *
+	 	 * TODO: Ponder if it is worthwhile just changing the msg.m.gestalt.gestalt pointer
+	 	 *       and adding page allocation metadata to msg.m.gestalt. This make this
+	 	 *       zero-copy, and also have explicit memory handling (although it would
+	 	 *       unfortunately restrict msg.m.gestalt to page-sized memory ops)
 	 	 */
 		memcpy(msg.m.gestalt.gestalt, p.tcpdata, p.tcpdatalen); 
 		msg.m.gestalt.length = p.tcpdatalen;
@@ -735,6 +756,7 @@ void tcp_init() {
 	connection_table_items = 0;
 	for (i=0; i< TCP_MAX_CONNECTIONS; ++i)
 		connection_table[i] = alloc_new_tcp_state();
+
 
 #ifdef TCP_TEST_SERVER
 	setup_test_server();
