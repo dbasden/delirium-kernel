@@ -83,7 +83,7 @@ isr_hook_\inum:	.globl isr_hook_\inum
 	iret
 	.endm
 
-	
+
 do_context_switch: 	/* Software vector handler for requested context switch (YIELD) */
 	cli
 	Push_Context

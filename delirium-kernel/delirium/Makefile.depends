@@ -25,15 +25,20 @@
 ./apps/slip/tcp.o: ./apps/slip/ipv4.h
 ./apps/slip/tcp.o: ./include/delirium.h ./include/soapbox.h ./include/ipc.h
 ./apps/slip/tcp.o: ./include/dlib/cqueue.h ./apps/slip/ipv4.h
+./apps/slip/tcp.o: ./include/rant.h
 ./apps/slip/ip_header.o: ./include/delirium.h ./apps/slip/ipv4.h
-./apps/slip/ip_header.o: ./apps/slip/ipv4_icmp.h
+./apps/slip/ip_header.o: ./include/rant.h ./include/soapbox.h ./include/ipc.h
+./apps/slip/ip_header.o: ./include/dlib/cqueue.h ./apps/slip/ipv4_icmp.h
 ./apps/slip/ipv4_icmp.o: ./apps/slip/ipv4.h ./include/delirium.h
+./apps/slip/ipv4_icmp.o: ./include/rant.h ./include/soapbox.h ./include/ipc.h
+./apps/slip/ipv4_icmp.o: ./include/dlib/cqueue.h
 ./apps/slip/ipv4.o: ./include/delirium.h ./include/ipc.h
 ./apps/slip/ipv4.o: ./include/dlib/cqueue.h ./include/soapbox.h
 ./apps/slip/ipv4.o: ./include/rant.h ./include/i386/interrupts.h
 ./apps/slip/ipv4.o: ./include/i386/io.h ./apps/slip/ipv4.h
 ./apps/slip/ipv4.o: ./apps/slip/ipv4_icmp.h ./apps/slip/tcp.h
-./apps/slip/ipv4.o: ./include/delirium.h
+./apps/slip/ipv4.o: ./include/delirium.h ./include/rant.h ./include/soapbox.h
+./apps/slip/ipv4.o: ./include/ipc.h ./include/dlib/cqueue.h
 ./apps/slip/slip.o: ./include/delirium.h ./include/ipc.h
 ./apps/slip/slip.o: ./include/dlib/cqueue.h ./include/soapbox.h
 ./apps/slip/slip.o: ./include/rant.h ./include/i386/interrupts.h

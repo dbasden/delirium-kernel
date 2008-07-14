@@ -92,9 +92,16 @@ void vgaprint(char *message) {
 	int i;
 	int offset;
 
-	while (LOCKED_SEMAPHORE(vga_print_s)) 
-		;
-	SPIN_WAIT_SEMAPHORE(vga_print_s);
+	if (_INTERRUPTS_ENABLED()) {
+		/* Only bother with the mutex when interrupts are enabled.
+		 * Theoretically kvga should only be used for the initial kernel
+		 * load anyhow (although everything is currently using it...),
+		 * but the worst that should happen is some screen corruption.
+		 */
+		while (LOCKED_SEMAPHORE(vga_print_s)) 
+			;
+		SPIN_WAIT_SEMAPHORE(vga_print_s);
+	}
 	kvgacursoroff();
 
 	for (i=0;;i++) {
@@ -105,7 +112,7 @@ void vgaprint(char *message) {
 
 		case 0:
 			kvgacursoron();
-			RELEASE_SEMAPHORE(vga_print_s);
+			if (_INTERRUPTS_ENABLED()) { RELEASE_SEMAPHORE(vga_print_s); }
 			return;
 
 		case '\n':

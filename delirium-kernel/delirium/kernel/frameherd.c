@@ -97,6 +97,10 @@ int take_from_herd(int frames, void *addrs) {
 	int taken;
 	int f;
 
+	if (LOCKED_SEMAPHORE(frameherd_s) && (! _INTERRUPTS_ENABLED())) {
+		kprint("take_from_herd: Deadlock! frameherd mutex semaphore taken and interrupts are off!\n");
+		kpanic();
+	}
 	while (LOCKED_SEMAPHORE(frameherd_s))
 		;
 	SPIN_WAIT_SEMAPHORE(frameherd_s);
@@ -122,6 +126,10 @@ int take_from_herd(int frames, void *addrs) {
  */ 
 void return_to_herd(int frames, void *addrs) { 
 
+	if (LOCKED_SEMAPHORE(frameherd_s) && (! _INTERRUPTS_ENABLED())) {
+		kprint("return_to_herd: Deadlock! frameherd mutex semaphore taken and interrupts are off!\n");
+		kpanic();
+	}
 	SPIN_WAIT_SEMAPHORE(frameherd_s);
 	while (frames--) { 
 		BITVEC_SET(herd, _MEM_TO_FRAME( *((u_int32_t *) addrs)) ); 

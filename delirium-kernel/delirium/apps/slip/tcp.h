@@ -26,6 +26,9 @@ struct TCP_Header {
 #define TCP_MIN_HEADER_SIZE 20
 #define TCP_EXTRACT_HEADERLEN(_tcpheader_p) (( ((struct TCP_Header *)(_tcpheader_p))->header_len & 0xf0 ) >> 2)
 
+#define TCP_DEFAULT_MSS		536
+#define TCP_PREFERRED_MSS	1400
+
 #define TCP_OPTION_END		0
 #define TCP_OPTION_NOOP		1
 #define TCP_OPTION_MSS		2
@@ -82,7 +85,12 @@ struct tcp_queue {
 } __packme;
 typedef struct tcp_queue tcp_queue_t;
 
+#if 0
 #define TCP_DEFAULT_PREFERRED_WINDOW_SIZE	65535
+#endif
+/* a 64k window would take 4.5 seconds to xfer across a slip link. 
+ */
+#define TCP_DEFAULT_PREFERRED_WINDOW_SIZE	8192
 
 typedef struct {
 	u_int32_t	initial_seq; 	/* IRS */
@@ -102,7 +110,6 @@ typedef struct {
 	/* from the segment used to generate the last window value */
 	u_int32_t	last_win_seg_seq;	/* SND.WL1 */
 	u_int32_t	last_win_seg_ack;	/* SND_WL2 */
-
 } __packme tcp_transmitter_state_t;
 
 typedef struct {
@@ -114,7 +121,7 @@ typedef struct {
 	tcp_transmitter_state_t	tx;
 	tcp_queue_t		rxwindow;
 	tcp_queue_t		txwindow;
-	u_int16_t		mss;
+	u_int32_t		mss;
 } __packme tcp_state_t;
 
 /* Packet metadata for tcp.h internal use */

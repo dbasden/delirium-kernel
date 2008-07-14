@@ -72,9 +72,20 @@ void elf_load(void *base, size_t size) {
 		}
 	}
 	
+	#if 0
+	/* 2008-07-15: THIS IS BAD!
+	 * tempstack should NOT be used by things outside of inth.S or mem.S!
+	 * even that is going to be phased out...
+	 *
+	 * new_kthread is a much more sane way to be doing this even to bootstrap
+	 * usermode...
+	 */
+
 	/* Splinter, but give the tempstack, so we have to yield to make
 	 * sure that it is freed again before we are called again in this
 	 * thread */
 	splinter(f->entry, tempstack+PAGE_SIZE);
 	yield();
+	#endif
+	new_kthread(f->entry);
 }

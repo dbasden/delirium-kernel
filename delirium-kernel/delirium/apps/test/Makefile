@@ -14,4 +14,4 @@ clean:
 
 test.elf: test.o
 	$(LD) $(LDFLAGS) $^ ../delibrium/delibrium.o ../crt0.o ../calls-user.o -o $@
-	$(GCC_EXEC_PREFIX)strip test.elf
+	#$(GCC_EXEC_PREFIX)strip test.elf

@@ -12,7 +12,9 @@
 	.globl	kpanic, khalt, meditate, _idt_base, 
 	.globl	_idt_interrupt_template, setup_idt
 	.globl	save_first_tss, memcpy, backtrace
+	.globl	get_eflags
 
+	
 meditate:
 	pushl	vga_print_s
 	pushl	%ebp
@@ -58,9 +60,13 @@ khalt:
 #endif
 	jmp 0b
 
+get_eflags:
+	pushf
+	popl	%eax
+	ret
 
 /*
- * Evil hack
+ * Evil hack (why is this here?!)
  */
 memcpy:
 	jmp kmemcpy
