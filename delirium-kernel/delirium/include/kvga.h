@@ -4,6 +4,7 @@
 void vgaprint(char *message);
 void vgaprint_cli(char *message);	/* not for general use */
 void kvga_init(void *framebuffer);
+void kvgahead(char *message, int offset, int len);
 void kvga_spin();
 
 /* Base memory location of the text buffer */
@@ -18,6 +19,7 @@ void kvga_spin();
 
 /* Attribue to use for kernel writing */
 #define VGA_ATTR	7
+#define VGA_HEAD_ATTR	112
 #define VGA_ATTR_CURSOR	112
 
 #endif

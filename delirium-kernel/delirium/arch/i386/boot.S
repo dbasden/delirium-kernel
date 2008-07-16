@@ -69,9 +69,8 @@ multiboot_entry:
         pushl   $0
         popf
 
-#ifdef ENABLE_BOCHS_HACK
+	/* Be explicit */
 	cli
-#endif
 
 #ifdef IGNORE_MULTIBOOT
 	pushl	0

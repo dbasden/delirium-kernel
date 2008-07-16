@@ -14,8 +14,10 @@ typedef u_int32_t volatile	Semaphore;
 
 #define INIT_SEMAPHORE(_s)	_s = 1
 #define LOCKED_SEMAPHORE(_s)	((volatile Semaphore)(_s) == 0)
+
+/* MOVL isn't LOCKable, but OR is */
 #define RELEASE_SEMAPHORE(_s)	 \
-	({asm volatile ("lock movl $1, %0" :: "m" (_s) : "memory");})
+	({asm volatile ("lock or $1, %0" :: "m" (_s) : "memory");})
 #define SPIN_WAIT_SEMAPHORE(_s)\
 	({asm volatile ("0:\tlock btr $0, %0\n\tjnc 0b" :: "m" (_s) : "memory");})
 #define SPIN_YIELD_SEMAPHORE(_s)\

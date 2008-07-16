@@ -151,7 +151,7 @@ static struct mem_pool * get_free_pool_slot(struct master_index *master) {
 		if (master->pools[i].alloc_size == 0)
 			return &(master->pools[i]);
 
-	assert(1);
+	assert(0);
 	return NULL; /* Compiler happyness */
 }
 
@@ -181,15 +181,15 @@ static struct mem_pool * get_free_pool(struct master_index *master, int exponent
 	struct mem_pool *p;
 	assert(exponent <= MAX_POWER);
 	
-	p =  master->pool_index[exponent];
+	p = (master->pool_index)[exponent];
 
 	if (p == NULL) {
+		kprintf("[kernel/pool.c get_free_pool: master %x : pools for exp %d are full]\n", master, exponent);
 		/* All pools of that size are full. Make another. */
 		p = get_free_pool_slot(master);
 		allocate_pool(p, 1 << exponent);
 		master->pool_index[exponent] = p;
-	}
-
+	} 
 	return p;
 }
 
@@ -253,6 +253,10 @@ static void pfree(struct master_index *master, int exponent, void *ptr) {
 
 	memherd_freeBlock(&(pool->herd), ptr);
 
+	/* TODO: Fix the below code, which doesn't actually work :-( 
+	 * It doesn't remove the pool from the master pools list
+	 */
+#if 0
 	if (pool->herd.total_blocks == pool->herd.free_blocks) {
 		/* Pool is empty. Release it  */
 		release_pool(pool);
@@ -263,13 +267,14 @@ static void pfree(struct master_index *master, int exponent, void *ptr) {
 
 		/* TODO: Release chained master index iff empty */
 	}
+#endif
 }
 
 
 /*****************/
 
 static Semaphore pool_mutex;
-static struct master_index *kmaster_index;
+static volatile struct master_index *kmaster_index;
 
 void setup_pools() {
 	INIT_SEMAPHORE(pool_mutex);
