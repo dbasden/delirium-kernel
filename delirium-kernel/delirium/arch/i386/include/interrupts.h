@@ -45,6 +45,7 @@ void fault_handler();
 void trap_handler();
 void abort_handler();
 
+void early_timer_isr();
 void inth_timer();
 void inth_kill_current_thread();
 

@@ -6,6 +6,7 @@
 
 #include "klib.h"
 #include "kvga.h"
+#include "ktimer.h"
 
 #include "i386/cpu.h"
 #include "i386/mem.h"
@@ -69,7 +70,7 @@ void add_c_interrupt_handler(u_int8_t hw_interrupt, void (*handler)(void)) {
  */
 void remove_interrupt_handler(u_int8_t hw_interrupt) {
 	pic_mask_interrupt(hw_interrupt);
-	add_handler(hw_interrupt, &default_interrupt_handler);
+	add_handler(INTR_BASE + hw_interrupt, &default_interrupt_handler);
 }
 
 void setup_memory() {
@@ -80,14 +81,24 @@ void setup_memory() {
 }
 
 // set the int 0 timer to trigger a bit more than every ~53ms 
-// pre: interrupts are disabled
 void setup_timer() {
+
 	// 1.193182 MHz input clock
-	// divide by 1193 (0x04a9) to get around 1000Hz
+	// divide by 1193 (0x04a9) to get around 1000Hz (~1000.15256 Hz)
 	kdebug("setting int0 timer ");	
+	pic_mask_interrupt(INT_TIMER);
 	outb(0x43, 0x34); // 00110100b - chan 0, freq. divider, set lo/hi byte
 	outb(0x40, 0xa9); // Low byte of divider to chan 0 reload value
 	outb(0x40, 0x04); // High byte of divider to chan 0 reload value
+
+
+	kdebug("initialising ktimers");
+
+	/* Say we call it every 1000 useconds, when we really do every 999.847 useconds) */
+	ktimer_init(1000); 
+	
+	add_handler(INTR_BASE + INT_TIMER, &early_timer_isr);
+	pic_unmask_interrupt(INT_TIMER);
 }
 
 void setup_interrupts() {

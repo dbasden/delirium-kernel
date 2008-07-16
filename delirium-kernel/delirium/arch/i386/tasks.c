@@ -32,6 +32,7 @@ static Semaphore	INIT_SEMAPHORE(execute_splinter_sem);   // Only use once above 
 
 
 extern void do_context_switch();		// cpu.h
+extern void kvga_spin(); 			// kvga.c
 
 size_t 		running_thread_id;
 thread_t 	threads[MAX_THREADS];
@@ -61,6 +62,7 @@ static inline u_int32_t get_task_to_run() {
 		while (id != running_thread_id  &&  (threads[id].state != idle))
 			id = (id+1) % MAX_THREADS;
 	}
+	else kvga_spin();
 
 	return id;
 }
@@ -159,10 +161,8 @@ u_int32_t kill_current_thread(u_int32_t outgoing_esp) {
 	 * 	 be freed here, which may be the case for kthreads, but not enforced
 	 * 	 by the ABI
 	 */
-	kprint("<kill_current_thread");
 	kfreepage((void *) threads[brick_wall].ih_esp);
 	threads[brick_wall].state = dead;
-	kprint(">");
 
 	return new_esp;
 }
