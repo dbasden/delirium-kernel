@@ -173,6 +173,7 @@ void cmain(u_int32_t multi_magic, void *multi_addr) {
 	kprintf("Xen version: %d\n", i);
 	return;
 #endif
+	kvgahead(" DeLiRiuM                                                                       ", 0, 80);
 
 	kprintf("DeLiRiUM v%d.%d %% Still not king.\n\n", DELIRIUM_MAJOR_VER, DELIRIUM_MINOR_VER);
 
@@ -181,11 +182,8 @@ void cmain(u_int32_t multi_magic, void *multi_addr) {
 	kprint(" memory");;
 	setup_memory();
 
-
-#ifndef RAPID_TIMER
 	kprint(", timer");
 	setup_timer();
-#endif
 
 	kprint(", interrupts");
 	setup_interrupts();

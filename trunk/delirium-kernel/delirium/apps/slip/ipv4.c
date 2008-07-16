@@ -18,7 +18,7 @@ static volatile soapbox_id_t	datalink_soapbox;
 
 IPv4_Address	ipv4_local_ip;
 
-#define IPv4_DEBUG
+#undef IPv4_DEBUG
 #ifdef IPv4_DEBUG
 #define IPv4_DEBUG_print(_m)	print(_m)
 #else

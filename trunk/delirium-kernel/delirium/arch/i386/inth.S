@@ -118,9 +118,11 @@ inth_timer:		/* Handle timer interrupt */
 default_interrupt_handler:
 	Push_Context	 // Save the context! Collect the whole set!
 
+#if 0
 	mov	$0x10, %ax	// Enforce kernel DS and SS
 	mov	%ax, %ds
 	mov	%ax, %ss
+#endif
 
 	pushl	%ebp
 	movl	%esp, %ebp
@@ -134,8 +136,13 @@ default_interrupt_handler:
 
 	call	kvga_spin
 
-	movl	%ebp, %esp
+	EOI_pic_lo
+	cmpl	$8, 0x19(%ebp)
+	jb	0f
+	EOI_pic_hi
+0:	movl	%ebp, %esp
 	popl	%ebp
+
 
 	Pop_Context
 	iret
@@ -185,9 +192,10 @@ c_isr_wrapper_table:
 	.macro HandlerSafety
 	cli
 	mov	%esp, %eax
-	movl 	$(tempstack + 0x0a00), %esp
-	pushl	%esp	// Old ESP
+	movl 	$(tempstack + 0x0ff0), %esp
+	pushl	%eax	// Old ESP
 	pushl	%ebp	// Old EBP
+	mov	%esp, %ebp
 	Push_Context
 	.endm
 
@@ -199,29 +207,30 @@ trap_handler:
 	HandlerSafety
 	pushl $(trap_string)
 	jmp 1f
-fault_handler:
-	HandlerSafety
-	pushl $(fault_string)
 1:
 	call vgaprint_cli
-0:
-	jmp 0b
 	//jmp	meditate
 	int	$0x43
 
+fault_handler:
+	pushl	%ebp
+	movl	%esp,%ebp
+	pushl	running_thread_id
+	pushl	4(%ebp)
+	pushl	$(fault_string)
 
 	.data
 	.globl C_isr_p
 	.comm	C_isr_p, (256 * 4)
 
 ih_string:
-	.asciz	"Interrupt handler called: 0x%08x 0x%08x\n"
+	.asciz	"<Uncaught interrupt: 0x%08x 0x%08x>"
 abort_string:
 	.asciz	"Default abort handler called.\n"
 trap_string:
 	.asciz	"Default trap handler called.\n"
 fault_string:
-	.asciz	"Default fault handler called.\n"
+	.asciz	"Uncaught fault #%d. Killing thread %d\n"
 
 
 	/* Allocate a page so that we can kill off threads.

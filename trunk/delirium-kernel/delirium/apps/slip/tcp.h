@@ -90,7 +90,7 @@ typedef struct tcp_queue tcp_queue_t;
 #endif
 /* a 64k window would take 4.5 seconds to xfer across a slip link. 
  */
-#define TCP_DEFAULT_PREFERRED_WINDOW_SIZE	8192
+#define TCP_DEFAULT_PREFERRED_WINDOW_SIZE	2048
 
 typedef struct {
 	u_int32_t	initial_seq; 	/* IRS */
