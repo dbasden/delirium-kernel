@@ -4,6 +4,7 @@
 	.globl	do_context_switch, default_interrupt_handler
 	.globl  abort_handler, trap_handler, fault_handler
 	.globl	inth_timer, inth_kill_current_thread, tempstack
+	.globl	early_timer_isr
 
 
 /*
@@ -107,8 +108,17 @@ inth_kill_current_thread:
 	Pop_Context
 	iret
 
+early_timer_isr:
+	// Used before task setup puts inth_timer in place
+	Push_Context
+	call ktimer_on_timer_tick
+	EOI_pic_lo
+	Pop_Context
+	iret
+
 inth_timer:		/* Handle timer interrupt */
 	Push_Context
+	call ktimer_on_timer_tick
 	Switch_Context
 	EOI_pic_lo
 	Pop_Context

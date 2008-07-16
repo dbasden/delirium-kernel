@@ -16,7 +16,7 @@ DLIBOBJS=../dlib/bsearchtree.o ../dlib/map.o ../dlib/memherd.o
 KERNOBJS=kernel/kernel.o kernel/klib.o kernel/pool.o kernel/kvga.o
 KERNOBJS+=kernel/ipc.o kernel/soapbox.o kernel/rant.o
 KERNOBJS+=kernel/frameherd.o kernel/paging.o kernel/kthump.o kernel/elf.o
-KERNOBJS+=kernel/ramtree.o
+KERNOBJS+=kernel/ramtree.o kernel/ktimer.o
 
 ifdef ENABLE_GDB_STUB
 KERNOBJS+=kernel/gdb-support.o kernel/gdb-stub.o

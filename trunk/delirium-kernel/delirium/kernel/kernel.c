@@ -17,6 +17,7 @@
 #include "rant.h"
 #include "ramtree.h"
 #include "kpools.h"
+#include "kvga.h"
 
 #define MAX_INIT_APPS	4
 
@@ -182,11 +183,11 @@ void cmain(u_int32_t multi_magic, void *multi_addr) {
 	kprint(" memory");;
 	setup_memory();
 
-	kprint(", timer");
-	setup_timer();
-
 	kprint(", interrupts");
 	setup_interrupts();
+
+	kprint(", timer");
+	setup_timer();
 
 #ifdef ENABLE_GDB_STUB
 	kprintf(", gdbstub");
