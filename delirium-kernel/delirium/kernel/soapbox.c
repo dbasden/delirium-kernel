@@ -31,6 +31,7 @@
  * them using 32bit word operations so that it's not slow as anything.
  */
 #include <delirium.h>
+#include <assert.h>
 #include "dlib/map.h"
 #include "cpu.h"
 #include "paging.h"
@@ -58,6 +59,27 @@ soapbox_id_t get_soapbox_from_name(char *name) {
 	} RELEASE_SEMAPHORE(soapbox_mutex);
 
 	return ((s == NULL) ? 0 : ((soapbox_id_t) s));
+}
+
+/* get a new soapbox that isn't associated with a name
+ *
+ * returns 0 iff there are no more free soapboxes
+ */
+soapbox_id_t get_new_anon_soapbox() {
+	int sbidx;
+	soapbox_id_t soapbox_id = 0;
+
+	assert(_INTERRUPTS_ENABLED());
+
+	SPIN_YIELD_SEMAPHORE(soapbox_mutex); {
+		if (next_soapbox_index <= MAX_SOAPBOXEN) {
+			sbidx = next_soapbox_index++;
+			soapbox_id = GET_SOAPBOX_ID(sbidx, running_thread_id);
+			soapboxes[sbidx].id = soapbox_id;
+		}
+	} RELEASE_SEMAPHORE(soapbox_mutex);
+
+	return soapbox_id;
 }
 
 /*
