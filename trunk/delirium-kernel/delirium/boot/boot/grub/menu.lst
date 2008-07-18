@@ -24,5 +24,6 @@ title Delirium
 root (fd0)
 kernel /kern-i386
 module /eve.elf
+module /slip.elf
 module /delirium.ramtree
 

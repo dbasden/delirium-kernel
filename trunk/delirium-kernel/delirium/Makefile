@@ -95,6 +95,7 @@ image-i386: kern-i386 apps ramtree-i386-install
 	cp kern-i386 $(BOOTTMPDIR)
 	cp apps/eve/eve $(BOOTTMPDIR)/eve.elf
 	${STRIP} $(BOOTTMPDIR)/kern-i386 $(BOOTTMPDIR)/eve.elf
+	cp apps/slip/slip $(BOOTTMPDIR)/slip.elf
 	genext2fs -b 1440 -d $(BOOTTMPDIR)/ ./floppy.386 && \
 	echo -e 'root (fd0)\ninstall /boot/grub/stage1 d (fd0) /boot/grub/stage2\nquit\n' | /usr/sbin/grub --batch --device-map=`pwd`/boot/boot/grub/device.map --no-floppy --boot-drive='(fd0)' > /dev/null
 	rm -rf $(BOOTTMPDIR) || true

@@ -12,12 +12,15 @@
 #include "tcp.h"
 
 
-#define TCPDEBUG
+#undef TCPDEBUG
 #ifdef TCPDEBUG
 #define TCPDEBUG_print(_s)	{print("[tcp] "); print( (char *) __func__ ); print(": " _s);}
 #else
 #define TCPDEBUG_print(_s)
 #endif
+
+#define TCP_CALC_CHECKSUM	1
+#define TCP_DONT_CALC_CHECKSUM	0
 
 /* Obvious problem */
 #define _min(_a,_b)	(((_a) < (_b)) ? (_a) : (_b))
@@ -26,7 +29,6 @@
 #define TCP_MAX_CONNECTIONS	16
 
 static tcp_state_t * connection_table[TCP_MAX_CONNECTIONS];
-static size_t connection_table_items;
 
 #define _TCP_STATE_EXPONENT	7
 
@@ -226,21 +228,20 @@ static inline void rst_unknown_packet(message_t msg) {
 	tcphead->checksum =  ipv4_tcp_checksum(endpoints.local_addr, endpoints.remote_addr, tcphead, TCP_MIN_HEADER_SIZE);
 	msg.m.gestalt.length = IPV4_MIN_HEADER_SIZE  + TCP_MIN_HEADER_SIZE;
 
-	TCPDEBUG_print("sending RST\n");
-
+	TCPDEBUG_print("(sending RST)\n");
 	ipv4_checksum_and_send(msg);
 }
 
-static inline void checksum_outbound_tcp(tcp_state_t * tcpc, message_t msg) {
+static inline void checksum_outbound_tcp(tcp_state_t * tcpc, message_t msg, size_t tcp_seg_size) {
 	struct TCP_Header * tcphead = (struct TCP_Header *)(msg.m.gestalt.gestalt + IPV4_MIN_HEADER_SIZE);
-	tcphead->checksum =  ipv4_tcp_checksum(tcpc->endpoints.local_addr, tcpc->endpoints.remote_addr, tcphead, TCP_MIN_HEADER_SIZE);
+	tcphead->checksum =  ipv4_tcp_checksum(tcpc->endpoints.local_addr, tcpc->endpoints.remote_addr, tcphead, tcp_seg_size);
 }
 
-static message_t build_outbound_tcp_packet(tcp_state_t * tcpc, u_int32_t seq, u_int32_t ack,u_int16_t flags, u_int16_t window, u_int16_t urgent_ptr) {
+static message_t build_outbound_tcp_packet(tcp_state_t * tcpc, u_int32_t seq, u_int32_t ack,u_int16_t flags, u_int16_t window, u_int16_t urgent_ptr, size_t data_length, bool do_checksum) {
 	message_t msg;
 	msg.type = gestalt;
 	msg.m.gestalt.gestalt = tcp_get_page();
-	msg.m.gestalt.length = IPV4_MIN_HEADER_SIZE + TCP_MIN_HEADER_SIZE;
+	msg.m.gestalt.length = IPV4_MIN_HEADER_SIZE + TCP_MIN_HEADER_SIZE + data_length;
 	struct IPv4_Header *iphead = msg.m.gestalt.gestalt;
 	struct TCP_Header *tcphead = msg.m.gestalt.gestalt + IPV4_MIN_HEADER_SIZE;
 
@@ -253,7 +254,8 @@ static message_t build_outbound_tcp_packet(tcp_state_t * tcpc, u_int32_t seq, u_
 	tcphead->flags = flags;
 	tcphead->window = window;
 	tcphead->urgent_pointer = urgent_ptr;
-	checksum_outbound_tcp(tcpc, msg);
+	if (do_checksum)
+		checksum_outbound_tcp(tcpc, msg, TCP_MIN_HEADER_SIZE + data_length);
 
 	return msg;
 }
@@ -264,28 +266,25 @@ static inline void send_an_ack(tcp_state_t * tcpc) {
 		build_outbound_tcp_packet(tcpc,
 			htonl(tcpc->tx.seq_next),
 			htonl(tcpc->rx.seq_expected),
-			TCP_FLAG_ACK, htons(tcpc->rx.window_size), 0)
+			TCP_FLAG_ACK, htons(tcpc->rx.window_size), 0,
+			0, TCP_CALC_CHECKSUM)
 	);
 }
 
-
-/* **********************************************************************  */
-
-/* Received packet event handlers */
-
+/***********************************************************************  
+ *  Received packet event handlers 
+ */
 
 static inline void handle_listen_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
 	tcp_state_t * newtcpc;
 
 	/* Only state change for SYN packets */
 	if (!(p.tcphead->flags & TCP_FLAG_SYN))  {
-		TCPDEBUG_print("No SYN on packet\n");
 		rst_unknown_packet(msg); return;
 	}
 
 	/* Don't state change for packets that have ACK, RST or FIN set */
 	if (p.tcphead->flags & (TCP_FLAG_ACK | TCP_FLAG_RST | TCP_FLAG_FIN))  {
-		TCPDEBUG_print("extra flags set on packet\n");
 		if (p.tcphead->flags & TCP_FLAG_RST)
 			discard_silently(msg);
 		else
@@ -331,15 +330,14 @@ static inline void handle_listen_inbound(tcp_state_t * tcpc, message_t msg, tcp_
 	/* Send SYN and ACK incoming SYN */
 	ipv4_checksum_and_send( build_outbound_tcp_packet(tcpc, 
 				htonl(tcpc->tx.initial_seq), htonl(tcpc->rx.seq_expected), 
-				TCP_FLAG_SYN | TCP_FLAG_ACK, htons(tcpc->rx.window_size), 0)
+				TCP_FLAG_SYN | TCP_FLAG_ACK, htons(tcpc->rx.window_size), 0,
+				0, TCP_CALC_CHECKSUM)
 				);
 
 	TCPDEBUG_print("State change: allocated -> SYN_RECEIVED\n");
 	tcpc->current_state = syn_received;
 
-	/* TODO: 
-	 * - actually send packet to be processed by SYN_RECEIVED state handler is implied by RFC793
-	 */
+	/* TODO:  actually send packet to be processed by SYN_RECEIVED state handler is implied by RFC793 */
 	free_packet_memory(msg);
 }
 
@@ -353,14 +351,11 @@ static inline int is_packet_in_rx_window(tcp_state_t * tcpc, tcp_packetinfo_t p)
 	u_int32_t rxwin_right = rxwin_left + tcpc->rx.window_size;
 	
 	/* Empty segment but seq as expected */
-	if (p.tcpdatalen == 0 && tcpc->rx.window_size == 0 
-	    && segseq == rxwin_left)
+	if (p.tcpdatalen == 0 && tcpc->rx.window_size == 0 && segseq == rxwin_left)
 	    	return 1;
 
 	/* Empty segment but seq within (non 0 sized) window */
-	if (p.tcpdatalen == 0 && tcpc->rx.window_size > 0 
-	    && segseq >= rxwin_left
-	    && segseq < rxwin_right)
+	if (p.tcpdatalen == 0 && tcpc->rx.window_size > 0 && segseq >= rxwin_left && segseq < rxwin_right)
 	    	return 1;
 
 	/* Data in segment with 0 sized window */
@@ -369,12 +364,9 @@ static inline int is_packet_in_rx_window(tcp_state_t * tcpc, tcp_packetinfo_t p)
 	
 	/* Data in segment and non-0 sized window */
 	if (p.tcpdatalen > 0 && tcpc->rx.window_size > 0) {
-		/* segseq within window */
 		if (segseq >= rxwin_left && segseq < rxwin_right)
 			return 1;
-	
-		if (segseq+p.tcpdatalen-1 >= rxwin_left 
-		    && segseq+p.tcpdatalen-1 < rxwin_right)
+		if (segseq+p.tcpdatalen-1 >= rxwin_left && segseq+p.tcpdatalen-1 < rxwin_right)
 			return 1;
 	}
 
@@ -385,12 +377,9 @@ static inline void print_tcp_header(struct TCP_Header *tcphead) {
 	printf(" <sp=%u,dp=%u,seq=%u,ack=%u [%c%c%c%c%c%c] win=%u,csum=%4x,up=%u>\n",
 		ntohs(tcphead->source_port), ntohs(tcphead->destination_port),
 		ntohl(tcphead->sequence_num), ntohl(tcphead->ack_num),
-		(tcphead->flags & TCP_FLAG_URG) ? 'U' : '.',
-		(tcphead->flags & TCP_FLAG_ACK) ? 'A' : '.',
-		(tcphead->flags & TCP_FLAG_PSH) ? 'P' : '.',
-		(tcphead->flags & TCP_FLAG_RST) ? 'R' : '.',
-		(tcphead->flags & TCP_FLAG_SYN) ? 'S' : '.',
-		(tcphead->flags & TCP_FLAG_FIN) ? 'F' : '.',
+		(tcphead->flags & TCP_FLAG_URG) ? 'U' : '.', (tcphead->flags & TCP_FLAG_ACK) ? 'A' : '.',
+		(tcphead->flags & TCP_FLAG_PSH) ? 'P' : '.', (tcphead->flags & TCP_FLAG_RST) ? 'R' : '.',
+		(tcphead->flags & TCP_FLAG_SYN) ? 'S' : '.', (tcphead->flags & TCP_FLAG_FIN) ? 'F' : '.',
 		ntohs(tcphead->window), ntohs(tcphead->checksum), ntohs(tcphead->urgent_pointer));
 }
 
@@ -468,7 +457,8 @@ static inline void handle_established_inbound(tcp_state_t * tcpc, message_t msg,
 			build_outbound_tcp_packet(tcpc,
 				htonl(tcpc->tx.seq_next),
 				htonl(seg_seq + 1),
-				TCP_FLAG_ACK | TCP_FLAG_FIN, htons(tcpc->rx.window_size), 0)
+				TCP_FLAG_ACK | TCP_FLAG_FIN, htons(tcpc->rx.window_size), 0,
+				0, TCP_CALC_CHECKSUM)
 		);
 		cleanup_reset_connection(tcpc);
 		free_packet_memory(msg);
@@ -498,16 +488,8 @@ static inline void handle_established_inbound(tcp_state_t * tcpc, message_t msg,
 			tcpc->rx.window_size = tcpc->rx.preferred_window_size - p.tcpdatalen;
 		}
 
-		#if 0
-		/* TODO: Update rx window size (correctly) 
-		 * WARNING: This logic mgiht be munted !!! */
-		if (tcpc->rx.window_size <= (tcpc->rx.preferred_window_size / 2))
-			tcpc->rx.window_size = tcpc->rx.preferred_window_size - tcpc->rx.window_size;
-		#endif
-
 		tcpc->rx.window_size -= p.tcpdatalen;
 		tcpc->rx.seq_expected += p.tcpdatalen;
-
 
 		/* Shift down in memory and overwrite the headers. memcpy should deal iff dest < src 
 	 	 * Then just change the logical message length and queue it to the application.
@@ -521,13 +503,18 @@ static inline void handle_established_inbound(tcp_state_t * tcpc, message_t msg,
 		msg.m.gestalt.length = p.tcpdatalen;
 		rant(tcpc->soapbox_to_application, msg);
 	} 
+	else {
+		/* Release the memory here as responsibility to do so wasn't
+		 * done by the data handler
+		 */
+		free_packet_memory(msg);
+	}
 
 	/* TODO: Don't just ack here. REALLY.
 	 * Should queue it for sending on the next TX event (timer or app generated)
 	 * as long as it's not >= 500ms away.
 	 */
 	send_an_ack(tcpc);
-	free_packet_memory(msg);
 }
 
 static inline void handle_syn_rcvd_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
@@ -638,9 +625,59 @@ void tcp_ignore_data(message_t msg) {
 	free_packet_memory(msg);
 }
 
-/* Process data from an application and send it out to the world
+/* Create a new outbound segment containing count bytes from inbuf with
+ * for the connection tcpc with the seq # of sequence
  *
- * Run in the ipv4 thread
+ * TODO: Rework this to be zero-copy. So many other things are.
+ */
+static inline message_t create_new_data_segment(tcp_state_t * tcpc, void *inbuf, size_t count, u_int32_t sequence, u_int16_t flags) {
+	message_t seg_msg;
+
+	seg_msg = build_outbound_tcp_packet(tcpc, 
+			htonl(sequence), htonl(tcpc->rx.seq_expected), flags, 
+			htonl(tcpc->tx.window_size), 0,
+			count, TCP_DONT_CALC_CHECKSUM);
+	memcpy(((char *)seg_msg.m.gestalt.gestalt)+IPV4_MIN_HEADER_SIZE+TCP_MIN_HEADER_SIZE, inbuf, count);
+	checksum_outbound_tcp(tcpc, seg_msg, count + TCP_MIN_HEADER_SIZE);
+	return seg_msg;
+}
+
+static inline void queue_outbound_data_segment(tcp_state_t * tcpc, message_t msg) {
+	/* TODO: Actually queue for transmission rather than sending if appropriate*/
+	/* TODO: Check that the receive window is big enough */
+	/* TODO: Place data on un-acked data queue */
+	ipv4_checksum_and_send(msg);
+}
+
+static inline void queue_outbound_user_data(tcp_state_t *tcpc, message_t msg) {
+	/* Okay, split the message up into segments of MSS and queue */
+	assert(msg.type == gestalt);
+	char * buf = msg.m.gestalt.gestalt;
+	size_t bufsize = msg.m.gestalt.length;
+
+	while (bufsize) {
+		size_t segsize;
+		message_t newseg_msg;
+		int flags = 0;
+
+		segsize = _min(bufsize, tcpc->mss);
+		if (tcpc->current_state == established || tcpc->current_state == syn_received) 
+			flags |= TCP_FLAG_ACK;
+		if (bufsize == segsize)
+			flags |= TCP_FLAG_PSH;
+		newseg_msg = create_new_data_segment(tcpc, buf, segsize, tcpc->tx.seq_next, flags);
+
+		bufsize -= segsize;
+		buf += segsize;
+		tcpc->tx.seq_next += segsize;
+		queue_outbound_data_segment(tcpc, newseg_msg);
+	}
+
+	free_packet_memory(msg);
+}
+
+/* Process data an application wishes to send out via TCP
+ * Runs in the ipv4 thread
  */
 void tcp_handle_outbound_data(message_t msg) {
 	tcp_state_t * tcpc = NULL;
@@ -652,7 +689,8 @@ void tcp_handle_outbound_data(message_t msg) {
 	for (i=0; i<TCP_MAX_CONNECTIONS; i++) {
 		if (msg.destination == connection_table[i]->soapbox_from_application) {
 			tcpc = connection_table[i];
-			break;
+			if (tcpc->current_state != listen)
+				break;
 		}
 	}
 
@@ -661,10 +699,33 @@ void tcp_handle_outbound_data(message_t msg) {
 		tcp_ignore_data(msg);
 		return;
 	}
+	switch (tcpc->current_state) {
+		case closed:
+		case allocated:
+		case listen:
+		case fin_wait_1:
+		case fin_wait_2:
+		case closing:
+		case last_ack:
+		case time_wait:
+			TCPDEBUG_print("application tried to send to a connection in an invalid state. ignoring\n");
+			/* TODO: Notify the application of the error */
+			tcp_ignore_data(msg);
+			return;
 
-	TCPDEBUG_print("stub\n");
-	free_packet_memory(msg);
+		case syn_sent:
+		case syn_received:
+			TCPDEBUG_print("warning: sending data in SYN_SENT or SYN_RECEIVED is bad. Should queue.\n");
+			/* fall-through */
+
+		case established:
+		case close_wait:
+			queue_outbound_user_data(tcpc,msg);
+			return;
+	}
+ 	assert(0); /* EPIC FAIL */
 }
+
 
 /* **********************************************************************  */
 
@@ -725,7 +786,8 @@ void handle_inbound_tcp(message_t msg) {
 		case time_wait:
 			handle_active_close_inbound(tcpc, msg, p); return;
 	}
-	assert(tcpc->current_state != tcpc->current_state); /* assert false */
+	//assert(tcpc->current_state != tcpc->current_state); /* assert false */
+	TCPDEBUG_print("Spurious state!\n");
 	discard_silently(msg);
 }
 
@@ -773,11 +835,8 @@ void tcp_init() {
 
 	TCPDEBUG_print("Setting up TCP\n");
 	setup_pools();
-
-	connection_table_items = 0;
 	for (i=0; i< TCP_MAX_CONNECTIONS; ++i)
 		connection_table[i] = alloc_new_tcp_state();
-
 
 #define TCP_TEST_SERVER
 #ifdef TCP_TEST_SERVER

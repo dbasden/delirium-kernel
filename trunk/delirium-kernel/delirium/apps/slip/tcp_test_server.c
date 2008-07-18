@@ -11,13 +11,6 @@
 #define TCP_TEST_SERVER_PORT	7
 #endif
 
-#define TCPDEBUG
-#ifdef TCPDEBUG
-#define TCPDEBUG_print(_s)	{print("[tcp test server] "); print( (char *) __func__ ); print(": " _s);}
-#else
-#define TCPDEBUG_print(_s)
-#endif
-
 static soapbox_id_t	tcp_test_outbound_sb;
 static soapbox_id_t	tcp_test_inbound_sb;
 static tcp_state_t *	tcp_test_tcp_state;
@@ -25,11 +18,12 @@ static tcp_state_t *	tcp_test_tcp_state;
 void tcp_test_server_listener(message_t msg) {
 	/* Oh boy! A message from the internets! */
 	if (msg.type == gestalt) {
-		assert(msg.m.gestalt.length < 4096);
+		assert(msg.m.gestalt.length < 4000);
 		((char *)msg.m.gestalt.gestalt)[msg.m.gestalt.length] = 0;
-		printf("%s: state %d. recieved '%s'. Echoing.\n", __func__, tcp_test_tcp_state->current_state, (char *)msg.m.gestalt.gestalt);
+		#if 0
+		printf("%s: state %d. recieved '%s'. Echoing.\n", __func__, tcp_test_tcp_state->current_state, (char *)msg.m.gestalt.gestalt);
+		#endif
 		rant(tcp_test_outbound_sb, msg);
-		freepage(msg.m.gestalt.gestalt);
 	}
 }
 
