@@ -8,7 +8,6 @@ CFLAGS=-Wall -g -DARCH_i386 -DENABLE_ASSERTS -ffreestanding -nostdinc
 CFLAGS+=-isystem../../include/ -I.. -I../lib -mpush-args
 LDFLAGS=-static -L ../lib -Ttext 0x65020000 --gc-sections --print-gc-sections
 
-#APPOBJS=../delibrium/delibrium.o ../crt0.o -R ../calls-user.o
 APPOBJS=../crt0.o -R ../calls-user.o
 LIBS=-L../delibrium -ldelibrium
 IPV4OBJS=ip_header.o ipv4.o tcp.o
@@ -20,4 +19,3 @@ clean:
 
 slip: $(IPV4OBJS) slip.o
 	$(LD) $(LDFLAGS) $(APPOBJS) $^ $(LIBS) -o $@
-	#$(GCC_EXEC_PREFIX)strip slip

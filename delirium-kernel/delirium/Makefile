@@ -57,30 +57,49 @@ ramtree-base: ramtreemaker
 ramtree-xen-install: ramtree-base
 	cp ./delirium.ramtree boot
 
-# legacy
-ramtree: ramtree-i386-install
-
 ramtree-i386-install: ramtree-base
+	cp ./delirium.ramtree boot
+
+# legacy
+old-ramtree: ramtree-i386-install
+
+old-ramtree-i386-install: ramtree-base
 	sudo mount -oloop ./floppy.386 ./mnt
 	cp ./delirium.ramtree mnt
 	sudo umount ./mnt
 	/sbin/e2fsck floppy.386
 	touch floppy.386
 	
+BOOTTMPDIR=/tmp/deliriumboottmp
+
 image-xen: kern-xen apps ramtree-xen-install
 	cp xen.gz boot
 	cp kern-xen boot
 	echo "(fd0)	`pwd`/floppy.xen" > boot/boot/grub/device.map
-	rm -rf /tmp/deliriumboottmp || true
+	rm -rf $(BOOTTMPDIR) || true
 	# There isn't room on the floppy for the svn metadata
 	# (not that it should be there anyhow) -- davidb
 	#genext2fs -b 1440 -d boot/ ./floppy.xen 
-	( if [ -d boot/.svn ]; then svn export boot/ /tmp/deliriumboottmp; else	cp -a boot /tmp/deliriumboottmp; fi )
-	genext2fs -b 1440 -d /tmp/deliriumboottmp/ ./floppy.xen && \
-	echo -e 'root (fd0)\ninstall /boot/grub/stage1 d (fd0) /boot/grub/stage2\nquit\n' | /usr/sbin/grub --batch --device-map=`pwd`/boot/boot/grub/device.map --no-floppy --boot-drive='(fd0)'
-	rm -rf /tmp/deliriumboottmp || true
+	( if [ -d boot/.svn ]; then svn export boot/ $(BOOTTMPDIR); else	cp -a boot $(BOOTTMPDIR); fi )
+	genext2fs -b 1440 -d $(BOOTTMPDIR)/ ./floppy.xen && \
+	echo -e 'root (fd0)\ninstall /boot/grub/stage1 d (fd0) /boot/grub/stage2\nquit\n' | /usr/sbin/grub --batch --device-map=`pwd`/boot/boot/grub/device.map --no-floppy --boot-drive='(fd0)' > /dev/null
+	rm -rf $(BOOTTMPDIR) || true
 
-image-i386: kern-i386 apps ramtree
+
+image-i386: kern-i386 apps ramtree-i386-install
+	echo "(fd0)	`pwd`/floppy.386" > boot/boot/grub/device.map
+	rm -rf $(BOOTTMPDIR) || true
+	# There isn't room on the floppy for the svn metadata
+	# (not that it should be there anyhow) -- davidb
+	( if [ -d boot/.svn ]; then svn export boot/ $(BOOTTMPDIR); else	cp -a boot $(BOOTTMPDIR); fi )
+	cp kern-i386 $(BOOTTMPDIR)
+	cp apps/eve/eve $(BOOTTMPDIR)/eve.elf
+	${STRIP} $(BOOTTMPDIR)/kern-i386 $(BOOTTMPDIR)/eve.elf
+	genext2fs -b 1440 -d $(BOOTTMPDIR)/ ./floppy.386 && \
+	echo -e 'root (fd0)\ninstall /boot/grub/stage1 d (fd0) /boot/grub/stage2\nquit\n' | /usr/sbin/grub --batch --device-map=`pwd`/boot/boot/grub/device.map --no-floppy --boot-drive='(fd0)' > /dev/null
+	rm -rf $(BOOTTMPDIR) || true
+
+deprecated-image-i386: kern-i386 apps ramtree
 	sudo mount -oloop ./floppy.386 ./mnt
 	cp kern-i386 mnt
 	${STRIP} mnt/kern-i386

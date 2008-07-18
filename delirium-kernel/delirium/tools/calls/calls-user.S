@@ -32,6 +32,8 @@
 .global	await
 .global	add_c_interrupt_handler
 .global	remove_interrupt_handler
+.global	add_timer
+.global	get_new_anon_soapbox
 
 .set	mask_interrupt, 0x7ffff000
 .set	unmask_interrupt, 0x7ffff004
@@ -58,3 +60,5 @@
 .set	await, 0x7ffff058
 .set	add_c_interrupt_handler, 0x7ffff05c
 .set	remove_interrupt_handler, 0x7ffff060
+.set	add_timer, 0x7ffff064
+.set	get_new_anon_soapbox, 0x7ffff068

@@ -110,6 +110,8 @@ typedef struct {
 	/* from the segment used to generate the last window value */
 	u_int32_t	last_win_seg_seq;	/* SND.WL1 */
 	u_int32_t	last_win_seg_ack;	/* SND_WL2 */
+
+	u_int16_t	next_ip_id;		/* IP identification field */
 } __packme tcp_transmitter_state_t;
 
 typedef struct {
