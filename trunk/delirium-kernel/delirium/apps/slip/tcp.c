@@ -11,8 +11,6 @@
 
 #include "tcp.h"
 
-#define TCP_TEST_SERVER
-#define TCP_TEST_SERVER_PORT	7
 
 #define TCPDEBUG
 #ifdef TCPDEBUG
@@ -175,31 +173,6 @@ static inline void empty_tcpip_header(void *packet_base) {
 			0, 0, 0, 0, (TCP_MIN_HEADER_SIZE << 2) & 0xf0 , 0, 0 };
 }
 
-
-/* setup a TCP connection in the LISTEN state.
- * returns NULL iff it was unable to allocate the connection
- * otherwise returns a pointer to the state of the new TCP connection
- *
- * pre: port is not already listening
- */
-static tcp_state_t * create_new_listener(u_int16_t port, soapbox_id_t sb_from_application, soapbox_id_t sb_to_application) {
-	tcp_state_t * tcpc;
-
-	tcpc = get_free_connection();
-	if (tcpc == NULL) return NULL; /* No free connections */
-	assert(tcpc->current_state == allocated);
-
-	tcpc->soapbox_from_application = sb_from_application;
-	tcpc->soapbox_to_application = sb_to_application;
-	tcpc->endpoints.local_addr = ipv4_local_ip;
-	tcpc->endpoints.remote_addr = 0;
-	tcpc->endpoints.local_port = port;
-	tcpc->endpoints.remote_port = 0;
-	tcpc->current_state = listen;
-
-
-	return tcpc;
-}
 
 /* cleanup a connection that has been reset */
 static void  cleanup_reset_connection(tcp_state_t * tcpc) {
@@ -617,6 +590,20 @@ static inline void handle_syn_rcvd_inbound(tcp_state_t * tcpc, message_t msg, tc
 	/* open up the receive window :-) */
 	tcpc->rx.window_size = tcpc->rx.preferred_window_size;
 
+	/* Hook up the application soapbox to the correct receiver now that
+	 * we are in the TCP thread and connection is established.
+	 *
+	 * TODO: Notify client of connection state changes via a signal
+	 *
+	 * TODO: Handle better having the same listening port having multiple
+	 *       connections. Will probably have to generate a soapbox pair on
+	 *       connect and send it to the application
+	 */
+	/* note: supplicate can deal with being called multiple times,
+	 * and we don't want to memory leak any msgs rxed between a renounce 
+	 * and a supplicate just to change handlers */
+	extern void tcp_handle_outbound_data(message_t msg);
+	supplicate(tcpc->soapbox_from_application, tcp_handle_outbound_data);
 	tcpc->current_state = established;
 	TCPDEBUG_print("State change: SYN_RECEIVED -> ESTABLISHED\n");
 
@@ -637,6 +624,49 @@ static inline void handle_passive_close_inbound(tcp_state_t * tcpc, message_t ms
 static inline void handle_active_close_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
 	TCPDEBUG_print("stub\n"); discard_silently(msg); 
 }
+
+/* **********************************************************************  */
+
+/* Dump spurious message data from an application.
+ * WARNING: This may be running either in or out of the TCP thread
+ *
+ * pre: connection state in (closed, assigned, listening, fin_wait_1, 
+ *      fin_wait_2, last_ack, closing) or connection has no known state
+ */
+void tcp_ignore_data(message_t msg) { 
+	TCPDEBUG_print("Ignored application data\n");
+	free_packet_memory(msg);
+}
+
+/* Process data from an application and send it out to the world
+ *
+ * Run in the ipv4 thread
+ */
+void tcp_handle_outbound_data(message_t msg) {
+	tcp_state_t * tcpc = NULL;
+	int i;
+
+	if (msg.type != gestalt) return;
+
+	/* Find the associated TCP connection */
+	for (i=0; i<TCP_MAX_CONNECTIONS; i++) {
+		if (msg.destination == connection_table[i]->soapbox_from_application) {
+			tcpc = connection_table[i];
+			break;
+		}
+	}
+
+	if (tcpc == NULL || tcpc->current_state == closed) {
+		TCPDEBUG_print("spurious message received without associated connection. ignoring.\n");
+		tcp_ignore_data(msg);
+		return;
+	}
+
+	TCPDEBUG_print("stub\n");
+	free_packet_memory(msg);
+}
+
+/* **********************************************************************  */
 
 /* Process TCP/IP packets from the outside world.
  * Running in the ipv4 thread
@@ -700,57 +730,38 @@ void handle_inbound_tcp(message_t msg) {
 }
 
 
-
 /* ************************************************************************* */
 
-#ifdef TCP_TEST_SERVER
+/* setup a TCP connection in the LISTEN state.
+ * returns NULL iff it was unable to allocate the connection
+ * otherwise returns a pointer to the state of the new TCP connection
+ *
+ * threadsafe 
+ * (mainly because get_free_connection is and current_state is set to listen last)
+ *
+ * pre: port is not already listening
+ */
+tcp_state_t * tcp_create_new_listener(u_int16_t port, soapbox_id_t sb_from_application, soapbox_id_t sb_to_application) {
+	tcp_state_t * tcpc;
 
-static soapbox_id_t	tcp_test_outbound_sb;
-static soapbox_id_t	tcp_test_inbound_sb;
-static tcp_state_t *	tcp_test_tcp_state;
+	tcpc = get_free_connection();
+	if (tcpc == NULL) return NULL; /* No free connections */
+	assert(tcpc->current_state == allocated);
 
-void tcp_test_server_listener(message_t msg) {
-	/* Oh boy! A message from the internets! */
-	if (msg.type == gestalt) {
-		assert(msg.m.gestalt.length < 4096);
-		((char *)msg.m.gestalt.gestalt)[msg.m.gestalt.length] = 0;
-		printf("%s: state %d. recieved '%s'. Echoing.\n", __func__, tcp_test_tcp_state->current_state, (char *)msg.m.gestalt.gestalt);
-		//rant(tcp_test_outbound_sb, msg);
-		freepage(msg.m.gestalt.gestalt);
-	}
+	tcpc->soapbox_from_application = sb_from_application;
+	tcpc->soapbox_to_application = sb_to_application;
+	tcpc->endpoints.local_addr = ipv4_local_ip;
+	tcpc->endpoints.remote_addr = 0;
+	tcpc->endpoints.local_port = port;
+	tcpc->endpoints.remote_port = 0;
+
+	/* Ignore data until connected */
+	supplicate(tcpc->soapbox_from_application, tcp_ignore_data);
+
+	tcpc->current_state = listen;
+
+	return tcpc;
 }
-
-static void tcp_test_server_thread_entry() {
-	supplicate(tcp_test_inbound_sb, tcp_test_server_listener);
-}
-
-/* A test TCP server */
-static void setup_test_server() {
-
-	tcp_test_inbound_sb = get_new_anon_soapbox();
-	tcp_test_outbound_sb = get_new_anon_soapbox();
-	if (tcp_test_inbound_sb == 0 || tcp_test_outbound_sb == 0) {
-		printf("%s: Erk! Couldn't allocate soapbox! Exiting.\n", __func__);
-		return;
-	}
-
-	/* TODO: figure a way to do this asynchronously
-	 */
-	tcp_test_tcp_state = create_new_listener(htons(TCP_TEST_SERVER_PORT), tcp_test_outbound_sb, tcp_test_inbound_sb);
-	if (tcp_test_tcp_state == NULL) {
-		printf("%s: Erk! Couldn't create test server!\n", __func__);
-		return;
-	}
-
-	/* Have the server run in another thread.
-	 * Let's not avoid concurrency issues if they exist
-	 */
-	new_thread(tcp_test_server_thread_entry);
-}
-
-/* END ifdef TCP_TEST_SERVER */
-#endif
-
 
 /* ************************************************************************* */
 
@@ -768,7 +779,9 @@ void tcp_init() {
 		connection_table[i] = alloc_new_tcp_state();
 
 
+#define TCP_TEST_SERVER
 #ifdef TCP_TEST_SERVER
+	extern void setup_test_server();
 	setup_test_server();
 #endif
 }

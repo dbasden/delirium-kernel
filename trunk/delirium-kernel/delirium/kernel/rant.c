@@ -66,9 +66,19 @@ int supplicate(soapbox_id_t soapboxid, rant_handler_t handler) {
 	soapboxidx = SOAPBOX_INDEX(soapboxid);
 	if (soapboxes[soapboxidx].id != soapboxid) return 0;
 
+	/*  Make sure the refcount isn't inconsistent even if supplicate is called twice */
+	if (soapboxes[soapboxidx].supplicant.thread_id != 0 && soapboxes[soapboxidx].supplicant.thread_id != -1
+	    && soapboxes[soapboxidx].supplicant.handler) {
+		/* Decrease old refcount */
+		(threads[soapboxes[soapboxidx].supplicant.thread_id].refcount)--;
+
+		/* Wake the old thread if it was sitting in the listening state to
+		 * handle the case where refcount == 0 */
+		wake_thread(soapboxes[SOAPBOX_INDEX(soapboxid)].supplicant.thread_id);
+	}
 	soapboxes[soapboxidx].supplicant.thread_id = running_thread_id;
 	soapboxes[soapboxidx].supplicant.handler = handler;
-	(threads[running_thread_id].refcount)++;;
+	(threads[running_thread_id].refcount)++;
 
 	return soapboxes[soapboxidx].id;
 }
@@ -88,6 +98,11 @@ soapbox_id_t renounce(soapbox_id_t soapboxid) {
 	if (supplicant->handler == NULL) return 0;
 	supplicant->handler = NULL;	
 	(threads[supplicant->thread_id].refcount)--;;
+
+	/* Wake the old thread if it was sitting in the listening state to
+	 * handle the case where refcount == 0 */
+	wake_thread(soapboxes[SOAPBOX_INDEX(soapboxid)].supplicant.thread_id);
+
 	supplicant->thread_id = -1;
 
 	return soapboxid;

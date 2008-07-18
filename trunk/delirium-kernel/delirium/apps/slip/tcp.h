@@ -144,4 +144,11 @@ void tcp_init();
 /* Hooks for IPv4 */
 void handle_inbound_tcp(message_t msg);
 
+/* Hook to open a connection in the LISTEN state
+ *
+ * Should be actually called through IPC so other apps can use it, but this will do for testing
+ */
+tcp_state_t * tcp_create_new_listener(u_int16_t port, soapbox_id_t sb_from_application, soapbox_id_t sb_to_application);
+
+
 #endif

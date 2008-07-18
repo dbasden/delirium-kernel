@@ -10,7 +10,7 @@ LDFLAGS=-static -L ../lib -Ttext 0x65020000 --gc-sections --print-gc-sections
 
 APPOBJS=../crt0.o -R ../calls-user.o
 LIBS=-L../delibrium -ldelibrium
-IPV4OBJS=ip_header.o ipv4.o tcp.o
+IPV4OBJS=ip_header.o ipv4.o tcp_test_server.o tcp.o
 
 default: slip
 
