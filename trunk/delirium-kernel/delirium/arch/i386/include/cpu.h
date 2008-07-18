@@ -25,7 +25,7 @@ typedef u_int32_t volatile	Semaphore;
 
 /* _dest = _src if (_dest == expected) */
 #define cmpxchg(_dest, _src, _expected) \
-	({u_int32_t _result; asm volatile ("\tlock cmpxchg %1,%2" : "=a"(_result) : "r"(_src), "m"(_dest), "0"(_expected) : "memory"  ); _result;})
+	({u_int32_t _previous; asm volatile ("\tlock cmpxchg %1,%2" : "=a"(_previous) : "r"(_src), "m"(_dest), "0"(_expected) : "memory"  ); _previous;})
 
 #define IA32_FLAG_INTERRUPT_ENABLE	0x00000200
 

@@ -12,13 +12,13 @@ default 0
 fallback 1
 
 
-title DeLiRiuM/Xen
-root (fd0)
-#kernel /xen.gz console=vga dom0_mem=-4000
-kernel /xen.gz console=vga
-module /kern-xen
-module /eve.elf
-module /delirium.ramtree
+# dom0 stuff -- DeLiRiuM isn't ready for dom0
+#title DeLiRiuM/Xen (dom0)
+#root (fd0)
+#kernel /xen.gz console=vga
+#module /kern-xen
+#module /eve.elf
+#module /delirium.ramtree
 
 title Delirium
 root (fd0)

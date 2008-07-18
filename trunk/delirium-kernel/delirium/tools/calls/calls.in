@@ -23,3 +23,5 @@ freepage		kfreepage
 await			await
 add_c_interrupt_handler	add_c_interrupt_handler
 remove_interrupt_handler	remove_interrupt_handler
+add_timer		add_ktimer
+get_new_anon_soapbox	get_new_anon_soapbox

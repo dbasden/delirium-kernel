@@ -3,6 +3,7 @@
 #include <ipc.h>
 #include <soapbox.h>
 #include <rant.h>
+#include <cpu.h>
 
 #include "delibrium/delibrium.h"
 #include "delibrium/pool.h"
@@ -54,9 +55,31 @@ static inline void discard_silently(message_t msg) {
 	free_packet_memory(msg);
 }
 
+/* Trying for pseudorandom (although not very random) initial sequences and 
+ * packet ids (this breaks RFC 791  if used for sequences)
+ */
+static inline u_int32_t get_initial_id() {
+	u_int64_t tsc;
+	tsc = rdtsc();
+	return (u_int32_t)(((tsc >> 16) ^ (tsc & 0xffffffff) ^ (tsc << 20)) & 0xffffffff);
+}
 
-/* Get a pointer to a free connection in the connection table and
- * increment connection_table_items
+/*
+ * setup connection defaults and some unique initial state
+ * e.g. window size, MSS, IP ID etc
+ */
+static inline void init_tcp_connection(tcp_state_t *tcpc) {
+	tcpc->rx.preferred_window_size = TCP_DEFAULT_PREFERRED_WINDOW_SIZE;
+	tcpc->mss = TCP_DEFAULT_MSS; /* Until we know otherwise */
+	tcpc->tx.initial_seq = get_initial_id(); /* TODO: implement correctly */
+	tcpc->tx.next_ip_id = get_initial_id() % 0xffff; 
+	tcpc->tx.seq_next = tcpc->tx.initial_seq;
+	tcpc->tx.oldest_unack_seq = tcpc->tx.seq_next;
+}
+
+/* Get a pointer to a free connection in the connection table
+ * 
+ * threadsafe
  *
  * returns NULL iff connection_table_items < TCP_MAX_CONNECTIONS
  */
@@ -65,8 +88,8 @@ static inline tcp_state_t * get_free_connection() {
 
 	for (i=0; i<TCP_MAX_CONNECTIONS; i++) {
 		if (connection_table[i]->current_state == closed) {
-			connection_table[i]->current_state = allocated;
-			return connection_table[i];
+			if (cmpxchg(connection_table[i]->current_state, allocated, closed) == closed)
+				return connection_table[i];
 		}
 	}
 	return NULL;
@@ -152,15 +175,6 @@ static inline void empty_tcpip_header(void *packet_base) {
 			0, 0, 0, 0, (TCP_MIN_HEADER_SIZE << 2) & 0xf0 , 0, 0 };
 }
 
-/* Trying for pseudorandom (although not very random) initial sequences
- * I don't think this is a bad idea, but I will read some of the more
- * recent RFCs and probably do what everyone else is.
- */
-static inline u_int32_t get_initial_sequence() {
-	u_int64_t tsc;
-	tsc = rdtsc();
-	return (u_int32_t)(((tsc >> 16) ^ (tsc & 0xffffffff) ^ (tsc << 20)) & 0xffffffff);
-}
 
 /* setup a TCP connection in the LISTEN state.
  * returns NULL iff it was unable to allocate the connection
@@ -181,8 +195,6 @@ static tcp_state_t * create_new_listener(u_int16_t port, soapbox_id_t sb_from_ap
 	tcpc->endpoints.remote_addr = 0;
 	tcpc->endpoints.local_port = port;
 	tcpc->endpoints.remote_port = 0;
-	tcpc->rx.preferred_window_size = TCP_DEFAULT_PREFERRED_WINDOW_SIZE;
-	tcpc->mss = TCP_DEFAULT_MSS; /* Until we know otherwise */
 	tcpc->current_state = listen;
 
 
@@ -196,8 +208,6 @@ static void  cleanup_reset_connection(tcp_state_t * tcpc) {
 	tcpc->endpoints.remote_addr = 0;
 	tcpc->endpoints.local_port = 0;
 	tcpc->endpoints.remote_port = 0;
-	tcpc->rx.preferred_window_size = TCP_DEFAULT_PREFERRED_WINDOW_SIZE;
-	tcpc->mss = TCP_DEFAULT_MSS;
 	tcpc->current_state = closed;
 }
 
@@ -263,6 +273,8 @@ static message_t build_outbound_tcp_packet(tcp_state_t * tcpc, u_int32_t seq, u_
 
 	stub_fill_outbound_header(tcpc, iphead);
 	iphead->total_length = msg.m.gestalt.length;
+	iphead->identification = htons(tcpc->tx.next_ip_id);
+	tcpc->tx.next_ip_id++;
 	tcphead->sequence_num = seq;
 	tcphead->ack_num = ack;
 	tcphead->flags = flags;
@@ -326,40 +338,43 @@ static inline void handle_listen_inbound(tcp_state_t * tcpc, message_t msg, tcp_
 	/* TODO: check remote address isn't broadcast etc */
 	newtcpc->endpoints.remote_addr = p.iphead->source;
 	newtcpc->endpoints.remote_port = p.tcphead->source_port;
+
+	/* TODO: Figure out why these are tripping */
 #if 0
-	TODO: Figure out why these are tripping
 	assert(newtcpc->endpoints.local_addr == p.iphead->destination);
 	assert(newtcpc->endpoints.local_port == p.tcphead->destination_port);
 #endif
 
 	tcpc = newtcpc;
 
+	/* Setup initial seq, seq_next, etc */
+	init_tcp_connection(tcpc);
+
 	tcpc->rx.initial_seq = ntohl(p.tcphead->sequence_num);
 	tcpc->rx.seq_expected = tcpc->rx.initial_seq + 1;
+
+	tcpc->tx.seq_next += 1; /* Consume 1 seq # for the SYN */
+
+	/* Send SYN and ACK incoming SYN */
+	ipv4_checksum_and_send( build_outbound_tcp_packet(tcpc, 
+				htonl(tcpc->tx.initial_seq), htonl(tcpc->rx.seq_expected), 
+				TCP_FLAG_SYN | TCP_FLAG_ACK, htons(tcpc->rx.window_size), 0)
+				);
+
+	TCPDEBUG_print("State change: allocated -> SYN_RECEIVED\n");
+	tcpc->current_state = syn_received;
 
 	/* TODO: 
 	 * - actually send packet to be processed by SYN_RECEIVED state handler is implied by RFC793
 	 */
 	free_packet_memory(msg);
-
-	tcpc->tx.initial_seq = get_initial_sequence();
-	tcpc->tx.seq_next = tcpc->tx.initial_seq + 1;
-	tcpc->tx.oldest_unack_seq = tcpc->tx.initial_seq;
-
-	message_t ack_packet = build_outbound_tcp_packet(tcpc, 
-				htonl(tcpc->tx.initial_seq), htonl(tcpc->rx.seq_expected), 
-				TCP_FLAG_SYN | TCP_FLAG_ACK, htons(tcpc->rx.window_size), 0);
-	ipv4_checksum_and_send(ack_packet);
-
-	TCPDEBUG_print("State change: allocated -> SYN_RECEIVED\n");
-	tcpc->current_state = syn_received;
 }
 
 /* given the header of an inbound TCP packet, and the TCP connection state
  * return >0 iff the seq # is in our receive window
  * otherwise return 0
  */
-static int is_packet_in_rx_window(tcp_state_t * tcpc, tcp_packetinfo_t p) {
+static inline int is_packet_in_rx_window(tcp_state_t * tcpc, tcp_packetinfo_t p) {
 	u_int32_t segseq = ntohl(p.tcphead->sequence_num);
 	u_int32_t rxwin_left = tcpc->rx.seq_expected;
 	u_int32_t rxwin_right = rxwin_left + tcpc->rx.window_size;
@@ -712,17 +727,10 @@ static void tcp_test_server_thread_entry() {
 /* A test TCP server */
 static void setup_test_server() {
 
-	/* TODO: Anonomous soapboxes so that we don't have to worry about namespace collisions
-	 *       when doing this sort of thing
-	 */
-	tcp_test_inbound_sb = get_new_soapbox("/ip/tcp/tcp_test_server/inbound");
-	if (tcp_test_inbound_sb == 0) {
-		printf("%s: Erk! Couldn't allocate inbound soapbox!\n", __func__);
-		return;
-	}
-	tcp_test_outbound_sb = get_new_soapbox("/ip/tcp/tcp_test_server/outbound");
-	if (tcp_test_outbound_sb == 0) {
-		printf("%s: Erk! Couldn't allocate outbound soapbox!\n", __func__);
+	tcp_test_inbound_sb = get_new_anon_soapbox();
+	tcp_test_outbound_sb = get_new_anon_soapbox();
+	if (tcp_test_inbound_sb == 0 || tcp_test_outbound_sb == 0) {
+		printf("%s: Erk! Couldn't allocate soapbox! Exiting.\n", __func__);
 		return;
 	}
 
@@ -730,7 +738,7 @@ static void setup_test_server() {
 	 */
 	tcp_test_tcp_state = create_new_listener(htons(TCP_TEST_SERVER_PORT), tcp_test_outbound_sb, tcp_test_inbound_sb);
 	if (tcp_test_tcp_state == NULL) {
-		printf("%s: Erk! Couldn't open test server!\n", __func__);
+		printf("%s: Erk! Couldn't create test server!\n", __func__);
 		return;
 	}
 
@@ -753,7 +761,6 @@ void tcp_init() {
 	int i;
 
 	TCPDEBUG_print("Setting up TCP\n");
-	printf("Testing TSC: 0x%8x 0x%8x 0x%8x\n", get_initial_sequence(), get_initial_sequence(), get_initial_sequence());
 	setup_pools();
 
 	connection_table_items = 0;

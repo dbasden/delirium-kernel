@@ -1,0 +1,42 @@
+calls.in defines the mappings from kernel function calls to
+userland function calls.
+
+It works something like this:
+
+	- kernel function kdosomething()
+	  is also given a well-known address of (say) 0xfffff0a0
+	  and a userspace name of dosomething() (the symbol names 
+	  can be the same in userspace and kernel-space, but don't
+	  need to be)
+	- at kernel link time a table is generated which includes
+	  the actual address of kdosomething(), at offset of a0
+	  into the table
+	- at user application link time the function kdosomething()
+	  is linked to the address 0xfffff0a0
+	  ]ö
+	- the DeLiRiuM kernel keeps the page 0xffff0000 unmapped
+	  from the page table
+	- at runtime when the user application calls dosomething()
+	  at 0xfffff0a0, 
+
+to update, run:
+	cat calls.in | ./make-calls
+
+which will generate calls.map, calls-user.S and calls-kernel.S
+
+calls-kernel.S needs to be copied to delirium/arch/$(ARCH)/calls-kernel.S
+and calls-user.S needs to be copied to delirium/apps/calls-user.S
+
+Be /very/ carefuly updating calls.in! This defines the ABI for the
+entry-points to the kernel for user binaries. If you add or delete 
+anything from the middle, all user binaries break! Renaming stuff is
+okay if you go through and update any headers after then...
+
+IF YOU MUST UPDATE THIS FILE NEVER DELETE OR CHANGE THE ORDER OF THE
+EXISTING ENTRIES
+
+unless of course you are willing to break the whole ABI for any existing
+binary.
+
+
+

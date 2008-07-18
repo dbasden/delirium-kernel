@@ -41,6 +41,7 @@ extern soapbox_t soapboxes[];
 void setup_soapbox();
 soapbox_id_t get_soapbox_from_name(char *name);
 soapbox_id_t get_new_soapbox(char *name);
+soapbox_id_t get_new_anon_soapbox();
 soapbox_id_t set_soapbox_from_name(soapbox_id_t id, char *name);
 
 #endif
