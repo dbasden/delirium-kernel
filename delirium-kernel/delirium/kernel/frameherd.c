@@ -132,6 +132,12 @@ void return_to_herd(int frames, void *addrs) {
 	}
 	SPIN_WAIT_SEMAPHORE(frameherd_s);
 	while (frames--) { 
+	#if 0
+		if ( BITVEC_GET(herd, _MEM_TO_FRAME( *((u_int32_t *) addrs)) ) ) {
+			kprintf("%s: double free! 0x%8x\n", __func__, *(u_int32_t *)addrs);
+			kpanic();
+		}
+	#endif
 		BITVEC_SET(herd, _MEM_TO_FRAME( *((u_int32_t *) addrs)) ); 
 		addrs = addrs + sizeof(void *);
 	}
