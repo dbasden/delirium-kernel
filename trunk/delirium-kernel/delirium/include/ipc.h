@@ -30,7 +30,6 @@ typedef struct {
  */
 typedef u_int64_t signal_t;
 
-
 /* 
  * Basically a ring buffer
  */
@@ -48,6 +47,7 @@ struct _message {
 	message_type_t 	type;
 	size_t		sender;
 	size_t		destination;
+	size_t		reply_to;	/* Optional */
 	union {
 		gestalt_t gestalt;
 		linear_t linear;

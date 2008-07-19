@@ -17,6 +17,11 @@
 
 #ifdef __FUTURE__
 /*
+ * The linear stuff hasn't been tested, and looks like it's only
+ * somewhat finished. It must have been late... -- DGB
+ */
+
+/*
  * Create new linear, 
  */
 linear_t linear_new() {

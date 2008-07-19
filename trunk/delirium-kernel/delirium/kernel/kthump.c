@@ -39,11 +39,13 @@ static bool caps = false;
 
 static soapbox_id_t key_soap;
 
+/* called from ISR */
 static inline void scancode_rx(int scancode) {
 	int key;
 #ifdef ENABLE_GDB_STUB
 	extern void breakpoint();
 #endif
+	assert(_INTERRUPTS_ENABLED());
 	
 	/* Ignore all but the low byte */
 	scancode = scancode & 0xff;
@@ -144,9 +146,7 @@ static inline void writeKB(unsigned char c) {
 	  }
 	  yield();
 	}
-
-
-  	kprint("[!!!!kbwritefail!!!!]");
+  	kprint("[kbwrite failed]");
 }
 
 static inline void check_kb_ack() {
@@ -198,9 +198,11 @@ void atKeyboardISR() {
 }
 
 void setup_kthump() {
+#ifndef KTHUMP_DONT_INIT_KEYBOARD_CONTROLLER
 	unsigned char cmd = 0;
 	int kbtype = 0;
 	int i;
+#endif
 
 #define KB_AT	0
 
@@ -216,29 +218,20 @@ void setup_kthump() {
 	writeKBController(0xaa);
 	for (i=0; i<10; i++) yield();
 	cmd = readKB();
-	if (cmd != 0x55) {
-		//kprintf("\nKeyboard controller self test failed (0x%x)\n", cmd);
-		kprint("[kbc!]");
-	//	return;
-	}
+	if (cmd != 0x55)
+		kprintf("\nKeyboard controller self test failed (0x%x)\n", cmd);
 
-	writeKBController(0xab);
-	yield();
+	writeKBController(0xab); yield();
 	cmd = readKB();
 	if (cmd != 0x00) {
-		//kprintf("\nKeyboard to controller test failed (0x%x)\n", cmd);
-		kprint("[kb2c!]");
-	//	return;
+		kprintf("\nKeyboard to controller test failed (0x%x)\n", cmd);
 	}
-
 	/* Enable the keyboard clock*/
 	writeKBController(0xae);
 #endif
-#ifndef KTHUMP_DONT_INIT_KEYBOARD
 
-	/*
-	 * Reset keyboard
-	 */
+#ifndef KTHUMP_DONT_INIT_KEYBOARD
+	/* Reset keyboard */
 	writeKBwithACK(0xff);
 	cmd = readKB();
 	if (cmd != 0xaa) {
