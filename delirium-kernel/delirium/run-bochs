@@ -1,4 +1,4 @@
 #! /bin/sh
-bochs -q 'boot:a' 'floppya:1_44=floppy.386,status=inserted' 'gdbstub:enabled=1'  'display_library:x' $* & 
-#bochs -q 'boot:a' 'floppya:1_44=floppy.386,status=inserted' 'gdbstub:enabled=0'  'display_library:x' $* & 
+#bochs -q 'boot:a' 'floppya:1_44=floppy.386,status=inserted' 'gdbstub:enabled=1'  'display_library:x' $* & 
+bochs -q 'boot:a' 'floppya:1_44=floppy.386,status=inserted' 'gdbstub:enabled=0'  'display_library:x' $* & 
 sleep 1;gdb ./kern-i386 :1234; killall bochs
