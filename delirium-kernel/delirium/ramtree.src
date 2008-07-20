@@ -1,10 +1,9 @@
-apps/test/test.elf	apps/test
-apps/life/life		apps/life
-apps/life2/life2		apps/life2
+apps/life2/life2	apps/life
 apps/fishy/fishy	apps/fishy
 ../tmp/test		apps/bloat/prime
-apps/testserial/testserial	apps/testserial
-apps/vgatest/vgatest	apps/vgatest
-apps/testfaults/testfaults	apps/testfaults
+apps/test/test.elf	apps/test
+apps/testserial/testserial	apps/test/serial
+apps/vgatest/vgatest	apps/test/vga
+apps/testfaults/testfaults	apps/test/faults
+apps/dyn/dyn		apps/test/dyn
 apps/slip/slip		apps/slip
-apps/dyn/dyn		apps/dyn

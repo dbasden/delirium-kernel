@@ -151,4 +151,77 @@ void handle_inbound_tcp(message_t msg);
 tcp_state_t * tcp_create_new_listener(u_int16_t port, soapbox_id_t sb_from_application, soapbox_id_t sb_to_application);
 
 
+/* Signals sent from the TCP to the application
+ */
+typedef enum {
+	/* noop: Ignore */
+	server_noop,	
+
+	/* listener_has_new_established:
+	 *
+	 * LISTEN state connection has a new connection in the
+	 * ESTABLISHED state. 
+	 *
+	 * Message reply_to is set to the soapbox that will be
+	 * used for the new connection. Any signals about this
+	 * connection will have the same reply_to set.
+	 */
+	listener_has_new_established,
+
+	/* remote_reset:
+	 *
+	 * The remote has reset this connection.
+	 * Connection is immediately forced closed.
+	 */
+	remote_reset,
+
+	/* remote_finished_sending:
+	 *
+	 * The remote has finished sending data.
+	 */
+	remote_finished_sending,
+
+	/* connection_closed:
+	 *
+	 * This connection is closed. Send no further data.
+	 *
+	 * (Note: This is not guaranteed to be sent when the connection
+	 *  is closed, and is more an error response)
+	 */
+	connection_closed,
+
+	/* source_quench:
+	 *
+	 * ICMP_SOURCE_QUENCH received.
+	 */
+	source_quench,
+
+	/* zero_length_window:
+	 *
+	 * The remote connection currently has a 0 sized window
+	 * and you are sending data. This is only an advisory, but
+	 * the application should realise that we have to buffer
+	 * messages in memory at the moment
+	 */
+	zero_length_window
+
+} tcp_stack_signals_t;
+
+/* Signals sent from the application to the TCP
+ */
+typedef enum {
+	app_noop,		/* Ignore */
+
+	/* Please force close this connection and don't send the
+	 * application any more data. The application is likely to
+	 * not attempt receive any more rants to this soapbox
+	 */
+	force_close,
+
+	/* finished sending
+	 *
+	 * I have finished sending data for this connection.
+	 */
+	local_finish_sending,
+} tcp_app_signals_t;
 #endif

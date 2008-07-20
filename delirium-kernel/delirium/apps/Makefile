@@ -10,7 +10,7 @@ ASFLAGS=$(CFLAGS)
 LDFLAGS=$(CFLAGS)
 
 APPOBJS=crt0.o calls-user.o
-APPS=eve/eve test/test.elf fishy/fishy life/life testserial/testserial life2/life2
+APPS=eve/eve test/test.elf fishy/fishy testserial/testserial life2/life2
 APPS+=vgatest/vgatest testfaults/testfaults slip/slip
 
 default: appobjs libs apps
@@ -34,9 +34,6 @@ test/test.elf:
 testfaults/testfaults:
 	make -C testfaults
 
-life/life:
-	make -C life
-
 life2/life2:
 	make -C life2
 
@@ -55,7 +52,6 @@ vgatest/vgatest:
 clean:
 	make -C lib clean
 	make -C delibrium clean
-	make -C life clean
 	make -C test clean
 	make -C testfaults clean
 	make -C fishy clean

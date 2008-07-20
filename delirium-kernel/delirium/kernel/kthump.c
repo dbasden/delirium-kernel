@@ -45,7 +45,7 @@ static inline void scancode_rx(int scancode) {
 #ifdef ENABLE_GDB_STUB
 	extern void breakpoint();
 #endif
-	assert(_INTERRUPTS_ENABLED());
+	assert(! _INTERRUPTS_ENABLED());
 	
 	/* Ignore all but the low byte */
 	scancode = scancode & 0xff;

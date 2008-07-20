@@ -317,6 +317,9 @@ static inline void handle_listen_inbound(tcp_state_t * tcpc, message_t msg, tcp_
 	assert(newtcpc->endpoints.local_port == p.tcphead->destination_port);
 #endif
 
+	newtcpc->soapbox_from_application = tcpc->get_new_anon_soapbox();
+	assert(newtcpc->soapbox_from_application);
+
 	tcpc = newtcpc;
 
 	/* Setup initial seq, seq_next, etc */
@@ -591,6 +594,7 @@ static inline void handle_syn_rcvd_inbound(tcp_state_t * tcpc, message_t msg, tc
 	 * and a supplicate just to change handlers */
 	extern void tcp_handle_outbound_data(message_t msg);
 	supplicate(tcpc->soapbox_from_application, tcp_handle_outbound_data);
+	
 	tcpc->current_state = established;
 	TCPDEBUG_print("State change: SYN_RECEIVED -> ESTABLISHED\n");
 
