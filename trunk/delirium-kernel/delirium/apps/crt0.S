@@ -15,5 +15,4 @@ _start:
 end:
 exit:
 	int $IRQ_KILL
-	int $IRQ_YIELD
 	jmp exit
