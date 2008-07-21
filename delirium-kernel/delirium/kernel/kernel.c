@@ -208,8 +208,10 @@ void cmain(u_int32_t multi_magic, void *multi_addr) {
 	setup_tasks();
 
 	kprint(", ipc");
+	asm volatile(" cli");
 	setup_soapbox();
 	init_rant();
+	asm volatile(" sti");
 
 	kprint(", kthump");
 	setup_kthump();

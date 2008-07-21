@@ -53,4 +53,7 @@ void ktimer_on_timer_tick();
  */
 int add_ktimer(soapbox_id_t callback_soapbox, u_int32_t update_usecs, u_int32_t shots, u_int64_t signal);
 
+/* Same, but for userspace
+ */
+int add_timer(soapbox_id_t callback_soapbox, u_int32_t update_usecs, u_int32_t shots, u_int64_t signal);
 #endif

@@ -168,8 +168,8 @@ void printf(char *format, ...) {
 				pad += (*format)-'0';
 			}
 			switch (*format) {
-				case 'l':	/* Long: Assume sizeof(n)=4 */
-				format++;
+				case 'l':
+				++format;
 			 case 's':	/* String */
 				s = va_arg(argp, char *);
 				dest += strcpy(dest, s);

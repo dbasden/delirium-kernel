@@ -100,10 +100,12 @@ int take_from_herd(int frames, void *addrs) {
 	if (LOCKED_SEMAPHORE(frameherd_s) && (! _INTERRUPTS_ENABLED())) {
 		kprint("take_from_herd: Deadlock! frameherd mutex semaphore taken and interrupts are off!\n");
 		kpanic();
+	} 
+	if (_INTERRUPTS_ENABLED()) {
+		while (LOCKED_SEMAPHORE(frameherd_s))
+			;
+		SPIN_WAIT_SEMAPHORE(frameherd_s);
 	}
-	while (LOCKED_SEMAPHORE(frameherd_s))
-		;
-	SPIN_WAIT_SEMAPHORE(frameherd_s);
 	for (taken = 0; taken < frames; taken++) {
 		if ((f = next_free_in_pool()) == -1)
 			break;
@@ -113,7 +115,9 @@ int take_from_herd(int frames, void *addrs) {
 
 		addrs = addrs + sizeof(void *);
 	}
-	RELEASE_SEMAPHORE(frameherd_s);
+	if (_INTERRUPTS_ENABLED()) {
+		RELEASE_SEMAPHORE(frameherd_s);
+	}
 
 	return taken;
 }
@@ -128,9 +132,11 @@ void return_to_herd(int frames, void *addrs) {
 
 	if (LOCKED_SEMAPHORE(frameherd_s) && (! _INTERRUPTS_ENABLED())) {
 		kprint("return_to_herd: Deadlock! frameherd mutex semaphore taken and interrupts are off!\n");
-		kpanic();
+		//kpanic();
+	} 
+	if (_INTERRUPTS_ENABLED()) {
+		SPIN_WAIT_SEMAPHORE(frameherd_s);
 	}
-	SPIN_WAIT_SEMAPHORE(frameherd_s);
 	while (frames--) { 
 	#if 0
 		if ( BITVEC_GET(herd, _MEM_TO_FRAME( *((u_int32_t *) addrs)) ) ) {
@@ -141,7 +147,9 @@ void return_to_herd(int frames, void *addrs) {
 		BITVEC_SET(herd, _MEM_TO_FRAME( *((u_int32_t *) addrs)) ); 
 		addrs = addrs + sizeof(void *);
 	}
-	RELEASE_SEMAPHORE(frameherd_s);
+	if ( _INTERRUPTS_ENABLED())  {
+		RELEASE_SEMAPHORE(frameherd_s);
+	}
 }
 
 /*

@@ -29,6 +29,7 @@ extern void set_pdbr(void *);
 extern void disable_paging();
 extern void enable_paging();
 extern void handle_pf();
+extern void force_invalidate_tlb(void *);
 
 extern page_table_t kernel_page_dir;
 #endif

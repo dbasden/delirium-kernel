@@ -7,12 +7,14 @@
 
 void prompt() { printf(PROMPT); }
 
+#if 0
 int strncmp(char *s1, char *s2, int c) {
 	for (; c && *s1 && *s2; c--, s1++, s2++)
 		if (*s1 != *s2)
 			return (int) (*s1 - *s2);
 	return *s1 - *s2;
 }
+#endif
 
 // returns num of characters in the next word
 static int next_word(char * line, char token) {

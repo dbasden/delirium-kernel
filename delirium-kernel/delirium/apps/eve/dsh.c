@@ -13,12 +13,15 @@ extern void eve_elf_load(void *elf_image);
 
 void prompt() { print(PROMPT); }
 
+#if 0
+/* Now in delibrium*/
 int strncmp(char *s1, char *s2, int c) {
 	for (; c && *s1 && *s2; c--, s1++, s2++)
 		if (*s1 != *s2)
 			return (int) (*s1 - *s2);
 	return 0;
 }
+#endif
 
 // returns num of characters in the next word
 static int next_word(char * line, char token) {
