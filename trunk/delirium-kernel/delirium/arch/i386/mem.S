@@ -18,6 +18,7 @@
 	.globl	enable_paging
 	.globl	disable_paging
 	.globl	handle_pf
+	.globl	force_invalidate_tlb
 
 	.align 4
 
@@ -41,6 +42,11 @@ install_init_tr:
 set_pdbr:
 	mov	4(%esp), %eax 
 	mov	%eax, %cr3
+	ret
+
+force_invalidate_tlb:
+	mov	4(%esp), %eax
+	invlpg	(%eax)
 	ret
 
 enable_paging:

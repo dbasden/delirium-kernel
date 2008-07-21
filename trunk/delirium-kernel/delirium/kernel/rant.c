@@ -7,14 +7,11 @@
 #include "ipc.h"
 #include "klib.h"
 #include "rant.h"
+#include "multitask.h"
 
 #include "dlib/memherd.h"
 #include "dlib/queue.h"
 
-#if 0
-#include "i386/task.h"
-#endif
-#include "multitask.h"
 
 #define USING_MEMHERD_FOR_RANTS
 #undef USING_POOLS_FOR_RANTS
@@ -22,13 +19,10 @@
 typedef void(*rant_handler_t)(message_t);
 
 #ifdef USING_POOLS_FOR_RANTS
-
 #include "kpools.h"
-
 /* queue_link_t is 2 * 32 bit words or 2 ** 3 bytes 
  */ 
 #define QUEUE_LINK_T_EXP	3
-
 /* message_t is 5 * 32 bit words (20 bytes) and will fit into 2 ** 5 (32) bytes */
 #define MESSAGE_T_EXP	5
 
@@ -44,6 +38,7 @@ typedef void(*rant_handler_t)(message_t);
 #endif
 
 #ifdef USING_MEMHERD_FOR_RANTS
+#define __RANT_HERD_PAGES	1000
 static herd_t	rant_message_herd;
 static herd_t	rant_queue_herd;
 #endif
@@ -202,6 +197,8 @@ int rant(soapbox_id_t soapboxid, message_t message) {
 	return soapboxid;
 }
 
+static void * _rant_pagelist[__RANT_HERD_PAGES];
+
 void init_rant() {
 
 #ifdef USING_POOLS_FOR_RANTS
@@ -210,10 +207,32 @@ void init_rant() {
 #endif
 
 #ifdef USING_MEMHERD_FOR_RANTS
+#if 0
 	rant_queue_herd = new_memherd(kgetpage(), PAGE_SIZE, sizeof(queue_link_t));
 	rant_message_herd = new_memherd(kgetpage(), PAGE_SIZE, sizeof(message_t));
+#endif
+	int ret;
+	ret = kgetpages(__RANT_HERD_PAGES, _rant_pagelist);
+	if (ret == __RANT_HERD_PAGES) {
+		int totalbytes = sizeof(queue_link_t) + sizeof(message_t);
+		int totalentries = (PAGE_SIZE * __RANT_HERD_PAGES) / totalbytes;
+		int mpagecount = totalentries * sizeof(message_t) / PAGE_SIZE;
+		int qpagecount = totalentries * sizeof(queue_link_t) / PAGE_SIZE;
+		assert(mpagecount+qpagecount <= __RANT_HERD_PAGES);
+		kprintf("(%d:%dmp+%dqp ",__RANT_HERD_PAGES, mpagecount, qpagecount);
+		void *mpages = kherdpages(mpagecount, _rant_pagelist);
+		void *qpages = kherdpages(qpagecount, &(_rant_pagelist[mpagecount]));
+		assert(mpages != NULL);
+		assert(qpages != NULL);
+		rant_queue_herd = new_memherd(qpages, qpagecount * PAGE_SIZE, sizeof(queue_link_t));
+		rant_message_herd = new_memherd(mpages, mpagecount * PAGE_SIZE, sizeof(message_t));
+	} else {
+		kprintf("\n%s: only got %d out of %d pages requested. falling back to using 2 pages\n", __func__, ret, __RANT_HERD_PAGES);
+		rant_queue_herd = new_memherd(kgetpage(), PAGE_SIZE, sizeof(queue_link_t));
+		rant_message_herd = new_memherd(kgetpage(), PAGE_SIZE, sizeof(message_t));
+	}
 
-	kprintf("(%u rants max)",
+	kprintf("%u rants max)",
 			(rant_message_herd.free_blocks < rant_queue_herd.free_blocks) ?
 			rant_message_herd.free_blocks : rant_queue_herd.free_blocks);
 #endif

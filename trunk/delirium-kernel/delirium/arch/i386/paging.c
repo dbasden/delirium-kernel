@@ -53,7 +53,7 @@ static inline page_table_t new_page_table() {
 #define DIR_INDEX(_memaddr)		((size_t) ((size_t)(_memaddr) >> 22))
 
 /* index into page table is bits 12-21 of the logical address */
-#define TABLE_INDEX(_memaddr)		( ((size_t) ((size_t)(_memaddr) >> 12)) & ((1 << 12) - 1))
+#define TABLE_INDEX(_memaddr)		( ((size_t) ((size_t)(_memaddr) >> 12)) & ((1 << 10) - 1))
 
 #define FRAME_PHYS(_memaddr)		(((_memaddr) >> 12) << 12)
 
@@ -62,6 +62,8 @@ static inline page_table_t new_page_table() {
  */
 void paging_add_to_table(page_table_t table, void *logical, void *physical) {
 	table[TABLE_INDEX(logical)] = (u_int32_t) physical | PT_PRESENT, PT_RW;
+	force_invalidate_tlb(table);
+	force_invalidate_tlb(logical);
 }
 
 /*
@@ -78,6 +80,8 @@ void paging_add_to_dir(page_table_t dir, void *logical, void *physical) {
 		paging_add_to_dir(kernel_page_dir, spare_page_table, spare_page_table);
 		if (dir != kernel_page_dir) paging_add_to_dir(dir, 
 				spare_page_table, spare_page_table);
+
+		set_pdbr(kernel_page_dir); /* Invalidate TLBs */
 	}
 
 
@@ -121,7 +125,7 @@ void setup_paging() {
 	paging_add_to_dir(kernel_page_dir, &fc, &fc);	// Evil way of getting stack frame
 	paging_add_to_dir(kernel_page_dir, VGA_BASE, VGA_BASE);
 
-	templist = (void **) new_page_table();
+	take_from_herd(1, &templist);
 	fc = get_allocated_frames(PAGE_SIZE / sizeof(void *), templist);
 	if ( fc >= (PAGE_SIZE / sizeof(void *))) {
 		kprint("More than 4MB of allocated frames already... Unimplemented, so dying.\n");

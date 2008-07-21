@@ -7,9 +7,12 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <cpu.h>
-#include "ipc.h"
-#include "soapbox.h"
-#include "rant.h"
+#include <ktimer.h>
+#include <ipc.h>
+#include <soapbox.h>
+#include <rant.h>
+#include "delibrium/timer.h"
+
 
 void test_stdarg(int count, ...) {
 	int i;
@@ -73,6 +76,12 @@ void test_producer() {
 	rant(p_soapbox, outmsg);
 }
 
+void test_timer_rx(message_t msg) {
+	u_int64_t tsc = rdtsc();
+	Assert(msg.type == signal);	
+	printf("%s: timer tick every %u us. TSC is 0x%8x%8x. lower word: %u\n", __func__, (u_int32_t)msg.m.signal, (u_int32_t)(tsc >> 32),(u_int32_t)(tsc & 0xffffffff),(u_int32_t)(tsc & 0xffffffff));
+}
+
 void dream() {
 
 	Assert(sizeof(u_int8_t) == 1);
@@ -120,6 +129,13 @@ void dream() {
 	a = cmpxchg(v, 50, 20);
 	printf("%d, %d\n", a,v);
 
+	printf("Testing timers\n");
+	soapbox_id_t timersb = get_new_anon_soapbox();
+	supplicate(timersb, test_timer_rx);
+	add_timer(timersb, 1000, 10, 1000); /* Every 1ms */
+	add_timer(timersb, 1000000, 10, 1); /* Every 1s */
+#if 0
+
 	printf("Testing interrupt handler\n");
 	asm volatile ( "INTO" );
 
@@ -132,4 +148,5 @@ void dream() {
 	new_thread(test_task_c);
 
 	printf("Tests over\n");
+#endif
 }

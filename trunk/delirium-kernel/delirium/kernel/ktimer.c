@@ -77,13 +77,13 @@ void ktimer_on_timer_tick() {
 			msg.type = signal;
 			msg.m.signal = ktp->signal;
 			rant(ktp->callback_soapbox, msg);
-		}
 
-		if (ktp->shots) {
-			if (! --(ktp->shots)) {
-				/* n-shot timer ran out. return to unused timer stack and don't reinsert */
-				push_timer(&unused_timers_head, ktp);
-				continue;
+			if (ktp->shots) {
+				if (! --(ktp->shots)) {
+					/* n-shot timer ran out. return to unused timer stack and don't reinsert */
+					push_timer(&unused_timers_head, ktp);
+					continue;
+				}
 			}
 		}
 
