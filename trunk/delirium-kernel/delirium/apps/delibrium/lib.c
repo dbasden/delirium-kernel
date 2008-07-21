@@ -55,6 +55,16 @@ int strcmp(char *s1, char *s2) {
 	return *s1 - *s2;
 }
 
+int strncmp(char *s1, char *s2, size_t len) {
+	while (*s1 != 0 && *s2 != 0 && *s1 == *s2 && len) {
+		s1++;
+		s2++;
+		len--;
+	}
+	if (len == 0) { s1--; s2--; }
+	return *s1 - *s2;
+}
+
 
 /*
  * reverse string in-place

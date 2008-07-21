@@ -26,7 +26,7 @@
 #define _min(_a,_b)	(((_a) < (_b)) ? (_a) : (_b))
 
 
-#define TCP_MAX_CONNECTIONS	16
+#define TCP_MAX_CONNECTIONS	1024
 
 static tcp_state_t * connection_table[TCP_MAX_CONNECTIONS];
 
@@ -42,8 +42,18 @@ static tcp_state_t * alloc_new_tcp_state() {
 	return tcp;
 }
 
-void free_tcp_state(tcp_state_t *tcp) {
-	pool_free(_TCP_STATE_EXPONENT, tcp);
+/* send a signal rant to an application
+ */
+void signal_application(tcp_state_t *tcpc, tcp_stack_signals_t s) {
+	message_t sigmsg;
+	sigmsg.type = signal;
+	sigmsg.reply_to = tcpc->soapbox_from_application;
+	sigmsg.m.signal = s;
+	rant(tcpc->soapbox_to_application, sigmsg);
+}
+
+void free_tcp_state(tcp_state_t *tcpc) {
+	pool_free(_TCP_STATE_EXPONENT, tcpc);
 }
 
 static inline void free_packet_memory(message_t msg) {
@@ -317,7 +327,7 @@ static inline void handle_listen_inbound(tcp_state_t * tcpc, message_t msg, tcp_
 	assert(newtcpc->endpoints.local_port == p.tcphead->destination_port);
 #endif
 
-	newtcpc->soapbox_from_application = tcpc->get_new_anon_soapbox();
+	newtcpc->soapbox_from_application = get_new_anon_soapbox();
 	assert(newtcpc->soapbox_from_application);
 
 	tcpc = newtcpc;
@@ -504,6 +514,7 @@ static inline void handle_established_inbound(tcp_state_t * tcpc, message_t msg,
 	 	 */
 		memcpy(msg.m.gestalt.gestalt, p.tcpdata, p.tcpdatalen); 
 		msg.m.gestalt.length = p.tcpdatalen;
+		msg.reply_to = tcpc->soapbox_from_application;
 		rant(tcpc->soapbox_to_application, msg);
 	} 
 	else {
@@ -595,8 +606,9 @@ static inline void handle_syn_rcvd_inbound(tcp_state_t * tcpc, message_t msg, tc
 	extern void tcp_handle_outbound_data(message_t msg);
 	supplicate(tcpc->soapbox_from_application, tcp_handle_outbound_data);
 	
-	tcpc->current_state = established;
 	TCPDEBUG_print("State change: SYN_RECEIVED -> ESTABLISHED\n");
+	tcpc->current_state = established;
+	signal_application(tcpc, listener_has_new_established);
 
 	/* RFC 793 says 'Continue processing' the packet. 
 	 * We'll just feed it into the ESTABLISHED state packet handler
