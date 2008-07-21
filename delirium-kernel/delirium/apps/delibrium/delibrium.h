@@ -19,6 +19,8 @@ void memstamp(char *mem, char *stamp, unsigned int stamplen, unsigned int count)
 size_t strlen(char *str);
 int strcpy(char *dest, char *src);
 int strcmp(char *s1, char *s2);
+int strncmp(char *s1, char *s2, size_t len);
+int strncpy(char *s1, char *s2, size_t len);
 void revstr(char *str, size_t slen);
 int utos(char *dest, u_int32_t src, size_t base, size_t pad);
 int itos(char *dest, int32_t src, size_t base, int pad);

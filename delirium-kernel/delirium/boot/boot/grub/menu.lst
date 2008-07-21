@@ -3,7 +3,7 @@
 #
 
 # Boot automatically after 30 secs.
-timeout 2
+timeout 0
 
 # By default, boot the first entry.
 default 0
