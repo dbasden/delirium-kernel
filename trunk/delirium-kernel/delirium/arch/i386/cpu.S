@@ -84,8 +84,10 @@ backtrace:
 	pushl	16(%ebp)
 	pushl	$(bt_string)
 	call	kprintf
+	#if 0
 	addl	28, %esp
 	popl	vga_print_s
+	#endif
 	movl	%ebp, %esp
 	popl	%ebp
 	ret

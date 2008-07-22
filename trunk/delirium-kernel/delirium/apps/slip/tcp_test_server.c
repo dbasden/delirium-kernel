@@ -72,16 +72,29 @@ static inline void fill_404(message_t *msg) {
 }
 static inline void fill_ok(message_t *msg) {
 	char *p = msg->m.gestalt.gestalt;
+	int i;
+	char *vga = (char *)0xb8000;
+	#if 0
 	char *a = "HTTP/1.0 200 OK\r\nServer: DeLiRiuM TCP Test Server\r\nContent-Type: text-html\r\nContent-Length: 142\r\nConnection: close\r\n\r\n";
 	char *b = "<html>\n<head>\n  <title>DeLiRiuM TCP Test Server</title>\n</head>\n<body>\n<h1>DeLiRiuM TCP Test Server</h1>\n<p>Still Not King.</p></body></html>\n";
+	#endif
+	char *a = "HTTP/1.0 200 OK\r\nServer: DeLiRiuM TCP Test Server\r\nContent-Type: text-html\r\nContent-Length: 2235\r\nConnection: close\r\n\r\n" \
+	"<html>\n<head>\n <title>DeLiRiuM TCP Test Server</title>\n</head>\n<body>\n" \
+	"<h1>DeLiRiuM TCP Test Server</h1><p>Still Not King.</p>" \
+	"<pre><code style=\"background-color: black; color: white;\">";
+	char *c = "</code></pre></body></html>\n";
 	size_t lena = strlen(a);
-	size_t lenb = strlen(b);
+	size_t lenc = strlen(c);
 	memcpy(p, a, lena);
 	p += lena;
-	memcpy(p, b, lenb);
-	p += lenb;
+	for (i=0; i<2000; ++i, ++p) {
+		if (i && i % 80 == 0) *p++ = '\n';
+		*p = *vga; vga += 2;
+	}
+	memcpy(p, c, lenc);
+	p += lenc;
 	*p = 0;
-	msg->m.gestalt.length = lena+lenb;
+	msg->m.gestalt.length = lena+lenc+(80*25)+24;
 }
 
 /* way too simple pseudo HTTP/1.0 server listener 
