@@ -25,3 +25,4 @@
  	remove_interrupt_handler		remove_interrupt_handler		0x7ffff060
  	add_timer		add_ktimer		0x7ffff064
  	get_new_anon_soapbox		get_new_anon_soapbox		0x7ffff068
+ 	get_usec_since_boot		get_usec_since_boot		0x7ffff06c

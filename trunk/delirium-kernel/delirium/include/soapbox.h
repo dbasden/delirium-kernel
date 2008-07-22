@@ -20,7 +20,7 @@ typedef struct soapbox soapbox_t;
 #define SOAPBOX_INDEX_BITS      16
 
 /* Arbitary size. Cant be biger than the soapbox index bitfield */
-#define MAX_SOAPBOXEN   1024
+#define MAX_SOAPBOXEN   65535
 
 /* Index into the soapbox array */
 #define SOAPBOX_INDEX_MASK ((1 << SOAPBOX_INDEX_BITS)-1)
