@@ -34,6 +34,7 @@
 .global	remove_interrupt_handler
 .global	add_timer
 .global	get_new_anon_soapbox
+.global	get_usec_since_boot
 
 .set	mask_interrupt, 0x7ffff000
 .set	unmask_interrupt, 0x7ffff004
@@ -62,3 +63,4 @@
 .set	remove_interrupt_handler, 0x7ffff060
 .set	add_timer, 0x7ffff064
 .set	get_new_anon_soapbox, 0x7ffff068
+.set	get_usec_since_boot, 0x7ffff06c

@@ -143,3 +143,7 @@ int add_ktimer(soapbox_id_t callback_soapbox, u_int32_t update_usecs, u_int32_t 
 
 	return 1;
 }
+
+u_int64_t get_usec_since_boot() {
+	return useconds_since_boot;
+}

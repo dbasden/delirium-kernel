@@ -47,6 +47,8 @@ typedef enum {
 	closed, allocated  /* internal states for connection table */
 } tcp_connection_state_t;
 
+extern const char * tcp_state_string[];
+
 /* Really just a note to self */
 typedef enum {
 	open, send, receive, close, abort, status
@@ -69,15 +71,14 @@ typedef struct {
 	u_int16_t	remote_port;
 } __packme tcp_connection_t;
 
-/* Use macros in queue.h for a linked queue for the windows
- *
- * TODO: put some macros in queue.h to make this more transparent
- */
+#define  _TCP_Q_LINK_EXP	4
 struct _tcp_q_link {
         struct _tcp_q_link *next;
-        tcpip_packet_t *item;
+        u_int32_t first_seq; /* seq # of the first byte */
+        message_t usermsg;
 } __packme;
 typedef struct _tcp_q_link tcp_q_link_t;
+
 
 struct tcp_queue {
 	tcp_q_link_t *head;
@@ -91,6 +92,7 @@ typedef struct tcp_queue tcp_queue_t;
 /* a 64k window would take 4.5 seconds to xfer across a slip link. 
  */
 #define TCP_DEFAULT_PREFERRED_WINDOW_SIZE	2048
+#define INITIAL_RTO_MS				2500
 
 typedef struct {
 	u_int32_t	initial_seq; 	/* IRS */
@@ -107,13 +109,29 @@ typedef struct {
 	u_int32_t	window_size;		/* SND.WND */
 	u_int16_t	urgent_ptr;		/* SND.UP */
 
+	u_int32_t	congestion_window;	/* cwnd */
+	u_int32_t	slowstart_threshold;	/* ssthresh */
+	u_int32_t	retransmit_timeout;	/* RTO  - in ms */
+	u_int32_t	srtt;
+	u_int32_t	rtt_variance;
+
 	/* from the segment used to generate the last window value */
 	u_int32_t	last_win_seg_seq;	/* SND.WL1 */
 	u_int32_t	last_win_seg_ack;	/* SND_WL2 */
 
+	/* Give each timer instance an ID number, with the most
+	 * recent saved here. Any timer id other than this one 
+	 * will be ignored by the RTO handler. This saves us having
+	 * to modify a single timeout. This is pretty ugly though.
+	 * It uses too many timers.
+	 */
+	u_int32_t	current_rto_id;	
+
 	u_int16_t	next_ip_id;		/* IP identification field */
 } __packme tcp_transmitter_state_t;
 
+
+#define _TCP_STATE_EXPONENT	7
 typedef struct {
 	tcp_connection_t	endpoints;
 	soapbox_id_t		soapbox_from_application;
@@ -121,8 +139,8 @@ typedef struct {
 	tcp_connection_state_t	current_state;
 	tcp_receiver_state_t	rx;
 	tcp_transmitter_state_t	tx;
-	tcp_queue_t		rxwindow;
-	tcp_queue_t		txwindow;
+	tcp_queue_t		rxwindowdata;
+	tcp_queue_t		txwindowdata;
 	u_int32_t		mss;
 } __packme tcp_state_t;
 

@@ -13,7 +13,7 @@
 pfhook_base:
 	.long	0x7ffff000
 pfhook_end:
-	.long	0x7ffff06c
+	.long	0x7ffff070
 
 	.align 8
 pfhook_table:
@@ -44,3 +44,4 @@ pfhook_table:
 	.long	[remove_interrupt_handler]
 	.long	[add_ktimer]
 	.long	[get_new_anon_soapbox]
+	.long	[get_usec_since_boot]

@@ -4,6 +4,7 @@
 #include <soapbox.h>
 #include <rant.h>
 #include <cpu.h>
+#include <ktimer.h>
 
 #include "delibrium/delibrium.h"
 #include "delibrium/pool.h"
@@ -30,13 +31,18 @@
 
 static tcp_state_t * connection_table[TCP_MAX_CONNECTIONS];
 
-#define _TCP_STATE_EXPONENT	7
+const char * tcp_state_string[] = {
+        "listen", "syn_sent", "syn_received", "established", "fin_wait_1", "fin_wait_2",
+        "close_wait", "closing", "last_ack", "time_wait",
+        "closed", "allocated" };
+
+
 
 static tcp_state_t * alloc_new_tcp_state() {
 	tcp_state_t * tcp;
 	tcp = pool_alloc(_TCP_STATE_EXPONENT);
-	tcp->txwindow.head = NULL;
-	tcp->txwindow.tail = NULL;
+	tcp->txwindowdata.head = NULL;
+	tcp->txwindowdata.tail = NULL;
 	tcp->current_state = closed;
 
 	return tcp;
@@ -74,6 +80,51 @@ static inline u_int32_t get_initial_id() {
 	return (u_int32_t)(((tsc >> 16) ^ (tsc & 0xffffffff) ^ (tsc << 20)) & 0xffffffff);
 }
 
+static inline void tcp_insert_into_queue(tcp_queue_t *q, message_t msg, u_int32_t seq) {
+	tcp_q_link_t * ql = pool_alloc(_TCP_Q_LINK_EXP);
+	assert(ql != NULL);
+	ql->first_seq = seq;
+	memcpy(&(ql->usermsg), &msg, sizeof(message_t));
+	QUEUE_ADDLINK(q, ql);
+}
+static inline void tcp_queue_deep_pop(tcp_queue_t *q) {
+	/* Pop and free the head of a queue, including any pages of data */
+	assert (! QUEUE_ISEMPTY(q));
+	tcp_q_link_t * popped = q->head;
+	QUEUE_DELETE(q);
+	free_packet_memory(popped->usermsg);
+	pool_free(_TCP_Q_LINK_EXP, popped);
+}
+static inline void tcp_deep_free_queue(tcp_queue_t *q) {
+	while (! QUEUE_ISEMPTY(q)) 
+		tcp_queue_deep_pop(q);
+}
+static inline void tcp_queue_pop_acked(tcp_queue_t *q, u_int32_t ack_next_expected) {
+	/* TODO: Fix wraparround edge case */
+	while (! QUEUE_ISEMPTY(q)) {
+		if (q->head->first_seq + q->head->usermsg.m.gestalt.length > ack_next_expected)
+			break;
+		tcp_queue_deep_pop(q);
+	}
+}
+
+#if 0
+struct _tcp_q_link {
+        struct _tcp_q_link *next;
+        u_int32_t first_seq; /* seq # of the first byte */
+        message_t usermsg;
+} __packme;
+typedef struct _tcp_q_link tcp_q_link_t;
+
+
+struct tcp_queue {
+	tcp_q_link_t *head;
+	tcp_q_link_t *tail;
+} __packme;
+typedef struct tcp_queue tcp_queue_t;
+#endif
+
+
 /*
  * setup connection defaults and some unique initial state
  * e.g. window size, MSS, IP ID etc
@@ -85,6 +136,19 @@ static inline void init_tcp_connection(tcp_state_t *tcpc) {
 	tcpc->tx.next_ip_id = get_initial_id() % 0xffff; 
 	tcpc->tx.seq_next = tcpc->tx.initial_seq;
 	tcpc->tx.oldest_unack_seq = tcpc->tx.seq_next;
+
+	/* RFC 2581: Initial cwnd must not be more than 2 segments, or more than 2 * SMSS
+	 * (obviously don't assume remote is going to obey this)
+	 *
+	 * Let's be conservative. :-P
+	 */
+	tcpc->tx.congestion_window = tcpc->mss;
+	tcpc->tx.slowstart_threshold = tcpc->rx.preferred_window_size;
+
+	tcpc->tx.retransmit_timeout = 2500; /* ms */
+	tcpc->tx.srtt = 2500;
+	tcpc->tx.rtt_variance = 0;
+	tcpc->tx.current_rto_id = 0;
 }
 
 /* Get a pointer to a free connection in the connection table
@@ -193,6 +257,8 @@ static void  cleanup_reset_connection(tcp_state_t * tcpc) {
 	tcpc->endpoints.remote_addr = 0;
 	tcpc->endpoints.local_port = 0;
 	tcpc->endpoints.remote_port = 0;
+	tcp_deep_free_queue(&tcpc->rxwindowdata);
+	tcp_deep_free_queue(&tcpc->txwindowdata);
 	tcpc->current_state = closed;
 }
 
@@ -311,8 +377,8 @@ static inline void handle_listen_inbound(tcp_state_t * tcpc, message_t msg, tcp_
 	}
 	newtcpc->current_state = allocated;
 	memcpy(newtcpc, tcpc, sizeof(tcp_state_t));
-	newtcpc->txwindow.head = NULL;
-	newtcpc->txwindow.tail = NULL;
+	newtcpc->txwindowdata.head = NULL;
+	newtcpc->txwindowdata.tail = NULL;
 
 	newtcpc->soapbox_from_application = tcpc->soapbox_from_application;
 	newtcpc->soapbox_to_application = tcpc->soapbox_to_application;
@@ -397,6 +463,7 @@ static inline void print_tcp_header(struct TCP_Header *tcphead) {
 }
 
 static inline void handle_established_inbound(tcp_state_t * tcpc, message_t msg, tcp_packetinfo_t p) {
+	/* TODO: Do packet prediction to bypass most of this for the expected case */
 	/* TODO: Queue out of order packets to be handled in sequence order when possible */
 
 	if (! is_packet_in_rx_window(tcpc, p)) {
@@ -436,6 +503,18 @@ static inline void handle_established_inbound(tcp_state_t * tcpc, message_t msg,
 		/* Yay. They've acked more stuff */
 		/* TODO: send more stuff */
 		tcpc->tx.oldest_unack_seq = seg_ack;
+
+		/* Invalidate the current RTO timer */
+		tcpc->tx.current_rto_id++;
+
+		/* Free fully acked data blocks */
+		tcp_queue_pop_acked(&tcpc->txwindowdata, seg_ack);
+
+		/* Set another timer iff there is unacked data outstanding */
+		if (tcpc->tx.oldest_unack_seq < tcpc->tx.seq_next)
+			add_timer(tcpc->soapbox_from_application, 
+				  tcpc->tx.retransmit_timeout * 1000, 1,
+				  tcpc->tx.current_rto_id);
 	}
 
 	if (seg_ack >= tcpc->tx.oldest_unack_seq) {
@@ -464,7 +543,8 @@ static inline void handle_established_inbound(tcp_state_t * tcpc, message_t msg,
 
 	/* TODO: REMOVE THIS BAD BAD BAD HACK! */
 	if (p.tcphead->flags & (TCP_FLAG_FIN))  {
-		/* TODO: Notify application */
+		signal_application(tcpc, remote_reset);
+		
 		TCPDEBUG_print("FIN received. Resetting connection."); 
 		ipv4_checksum_and_send(
 			build_outbound_tcp_packet(tcpc,
@@ -670,6 +750,12 @@ static inline void queue_outbound_user_data(tcp_state_t *tcpc, message_t msg) {
 	assert(msg.type == gestalt);
 	char * buf = msg.m.gestalt.gestalt;
 	size_t bufsize = msg.m.gestalt.length;
+	u_int32_t startseq = tcpc->tx.seq_next;
+
+	if (bufsize == 0) {
+		free_packet_memory(msg); 
+		return;
+	}
 
 	while (bufsize) {
 		size_t segsize;
@@ -689,7 +775,25 @@ static inline void queue_outbound_user_data(tcp_state_t *tcpc, message_t msg) {
 		queue_outbound_data_segment(tcpc, newseg_msg);
 	}
 
-	free_packet_memory(msg);
+	/* Put the user data into the retransmission data queue */
+	tcp_insert_into_queue(&tcpc->txwindowdata, msg, startseq);
+
+	/* Restart the retransmission timer */
+	tcpc->tx.current_rto_id++;
+	add_timer(tcpc->soapbox_from_application, 
+		  tcpc->tx.retransmit_timeout * 1000, 1, tcpc->tx.current_rto_id);
+}
+
+static inline void tcp_handle_rto_timer(tcp_state_t * tcpc, message_t msg) {
+	if (tcpc->tx.current_rto_id != (u_int32_t)msg.m.signal)
+		return; /* ignore expired timer */
+	switch (tcpc->current_state) {
+		case closed: case listen: case allocated: case time_wait:
+			return;
+		default: ;
+	}
+	printf("Blatently ignoring legit RTO timer. state: %s\n",
+		tcp_state_string[(int)(tcpc->current_state)]);
 }
 
 /* Process data an application wishes to send out via TCP
@@ -699,7 +803,6 @@ void tcp_handle_outbound_data(message_t msg) {
 	tcp_state_t * tcpc = NULL;
 	int i;
 
-	if (msg.type != gestalt) return;
 
 	/* Find the associated TCP connection */
 	for (i=0; i<TCP_MAX_CONNECTIONS; i++) {
@@ -709,6 +812,13 @@ void tcp_handle_outbound_data(message_t msg) {
 				break;
 		}
 	}
+	
+	if (msg.type == signal) {
+		/* RTO timer event */
+		tcp_handle_rto_timer(tcpc, msg);
+	}
+
+	if (msg.type != gestalt) return;
 
 	if (tcpc == NULL || tcpc->current_state == closed) {
 		TCPDEBUG_print("spurious message received without associated connection. ignoring.\n");
@@ -851,6 +961,8 @@ void tcp_init() {
 
 	TCPDEBUG_print("Setting up TCP\n");
 	setup_pools();
+	assert(sizeof(tcp_state_t) <= (2 << _TCP_STATE_EXPONENT));
+	assert(sizeof(tcp_q_link_t) <= (2 << _TCP_Q_LINK_EXP));
 	for (i=0; i< TCP_MAX_CONNECTIONS; ++i)
 		connection_table[i] = alloc_new_tcp_state();
 

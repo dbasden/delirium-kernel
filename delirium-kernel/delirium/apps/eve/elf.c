@@ -17,7 +17,7 @@
 #endif
 #define DYNAMIC_EXEC_BASE	(void *) 0x04000000
 
-#define EVE_ELF_DEBUG
+#undef EVE_ELF_DEBUG
 
 static void *next_exec_base = DYNAMIC_EXEC_BASE;
 
@@ -119,9 +119,9 @@ void eve_elf_load(void *base) {
 				elf_relocate_entry_t * reloc_entries_tail = ((void *) reloc_entries)  + reloc_table_size;
 				while (reloc_entries < reloc_entries_tail) {
 					if (reloc_entries->info == ELF_RELOCATE_RELATIVE) {
+						#ifdef EVE_ELF_DEBUG
 						void * rel = reloc_entries->offset;
 						u_int32_t * ptr = ( (void *) dyn_base + (int32_t) rel );
-						#ifdef EVE_ELF_DEBUG
 						//printf("(@0x%x>0x%x 0x%x>0x%x) ", rel, dyn_base+(int32_t)rel, *ptr, *ptr + (int32_t)dyn_base);
 						printf("(@0x%x>0x%x 0x%x>0x%x) ",
 							reloc_entries->offset, dyn_base + (int32_t) reloc_entries->offset,

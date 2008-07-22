@@ -20,7 +20,7 @@ struct queue {
 			( (_q)->tail->next = (_link) ) \
 		), ((_q)->tail = (_link)) )
 #define QUEUE_PEEK(_q) ((_q)->head->item) 
-#define QUEUE_DELETE(_q) ((_q)->head = (_q)->head->next)
+#define QUEUE_DELETE(_q) ( ((_q)->head = (_q)->head->next), (_q)->head == NULL ? (_q)->tail = NULL : (_q)->head )
 
 /* For use with the herd stuff */
 #define QUEUE_HERDED_ADD(_herd, _q, _item)	({queue_link_t *_i; \

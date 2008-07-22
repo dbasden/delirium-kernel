@@ -56,4 +56,7 @@ int add_ktimer(soapbox_id_t callback_soapbox, u_int32_t update_usecs, u_int32_t 
 /* Same, but for userspace
  */
 int add_timer(soapbox_id_t callback_soapbox, u_int32_t update_usecs, u_int32_t shots, u_int64_t signal);
+
+u_int64_t get_usec_since_boot();
+
 #endif
