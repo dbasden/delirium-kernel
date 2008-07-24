@@ -4,9 +4,12 @@
 #include <rant.h>
 #include "delibrium/delibrium.h"
 #include "readline.h"
+#ifdef ARCH_i386
+#include <i386/io.h>
+#endif
 
 #define PROMPT 	"eve) "
-#define HELP	"? date help moof\n"
+#define HELP	"? date help moof run signal inb outb inw outw inl outl\n"
 
 
 extern void eve_elf_load(void *elf_image);
@@ -120,6 +123,46 @@ void dsh_parse(char *l) {
 	} else 
 	if (!strncmp("yes", l, wl)) {
 		print("So that's some fries.\nWould you like fries with that?\n");
+#ifdef ARCH_i386
+	} else 
+	if (!strncmp("inb", l, wl)) {
+		int port; int byte;
+		l = l + wl + 1; 
+		if (!(wl = next_word(l, ' '))) {
+			print("usage: inb <decimal ioport>\n"); return;
+		}
+		port = atoi(l); byte = inb(port);
+		printf("io port 0x%4x = 0x%x\n", port, byte);
+	} else
+	if (!strncmp("inw", l, wl)) {
+		int port; int word;
+		l = l + wl + 1; 
+		if (!(wl = next_word(l, ' '))) {
+			print("usage: inw <decimal ioport>\n"); return;
+		}
+		port = atoi(l); word = inb(port);
+		printf("io port 0x%4x = 0x%x\n", port, word);
+	} else
+	if (!strncmp("outb", l, wl)) {
+		int port; int byte;
+		l = l + wl + 1; if (!(wl = next_word(l, ' '))) {
+			print("usage: outb <decimal ioport> <decimal byte>\n"); return;
+		}
+		port = atoi(l);
+		l = l + wl + 1; if (!(wl = next_word(l, ' '))) { return; }
+		byte = atoi(l); outb(port, byte);
+		printf("outb: io port 0x%4x <-- 0x%x\n", port, byte);
+	} else 
+	if (!strncmp("outw", l, wl)) {
+		int port; int word;
+		l = l + wl + 1; if (!(wl = next_word(l, ' '))) {
+			print("usage: outw <decimal ioport> <decimal uint16_t>\n"); return;
+		}
+		port = atoi(l);
+		l = l + wl + 1; if (!(wl = next_word(l, ' '))) { return; }
+		word = atoi(l); outw(port, word);
+		printf("outw: io port 0x%4x <-- 0x%x\n", port, word);
+#endif
 	} else {
 		printf("So thats a %s.\nWould you like fries with that?\n", l);
 	} 
