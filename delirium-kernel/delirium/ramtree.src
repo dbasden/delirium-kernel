@@ -3,7 +3,7 @@ apps/fishy/fishy	apps/fishy
 ../tmp/test		apps/bloat/prime
 apps/test/test.elf	apps/test
 apps/testserial/testserial	apps/test/serial
-apps/vgatest/vgatest	apps/test/vga
 apps/testfaults/testfaults	apps/test/faults
 apps/dyn/dyn		apps/test/dyn
 apps/slip/slip		apps/slip
+apps/rtl8139/rtl8139	drivers/rtl8139

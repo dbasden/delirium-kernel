@@ -52,5 +52,6 @@ void configure_pics() {
         outb(0xA1, 0x01); IODELAY;
 
 	pic_mask_all_interrupts();
+	pic_unmask_interrupt(2); /* Unmask the cascade */
 }
 

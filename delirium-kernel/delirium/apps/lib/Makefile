@@ -4,6 +4,8 @@ CC=$(GCC_EXEC_PREFIX)gcc
 LD=$(GCC_EXEC_PREFIX)ld
 CFLAGS=-Wall -isystem../../include/ -I.. -fno-builtin -O2 -mpush-args
 
+defaultaaa:
+
 default: libdvga.a
 
 libdvga.a: vga/vga.o vga/vga_modes.o

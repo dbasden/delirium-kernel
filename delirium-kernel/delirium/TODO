@@ -1,6 +1,8 @@
 	Need a way of adding stuff to a process specific page table, for different stuff. (Still todo) Although we could modify the page directory, it would be easier to copy the kernel space one, and then modify that per process. We would have to be *very* careful about adding stuff to kernel space if we decide that we want to allocate pages in any other way without updating EVERYTHING. This would suck<tm> Think of a better way to handle kernel stuff. Hardwire everything above or below a certain point and never change it?  This would mean NO page faults in that area of memory; 
 
 TODO:
+	- BUG: The slave pic cascade isn't working. Check masking etc on 
+	       IRQ 2
 
 	- BUG: Interrupt handlers can't spin on semaphores (or at least
 	  not in any useful way -- they wont get interrupted). Need to

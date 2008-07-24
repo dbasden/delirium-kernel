@@ -65,8 +65,8 @@
 
 	.macro EOI_pic_hi
 	mov 	$0x20,	%al
-	outb	%al,	$0x20
 	outb	%al,	$0xa0
+	outb	%al,	$0x20
 	.endm
 
 	.macro HW_Int_Hook inum
