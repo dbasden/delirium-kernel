@@ -1,5 +1,5 @@
 #! /bin/bash
-qemu -s -fda floppy.386 -m 32 -net none -k en-us ${DELIRIUM_ARGS} $@ &
+qemu -s -fda floppy.386 -m 32 -net user -net nic,model=rtl8139 -k en-us ${DELIRIUM_ARGS} $@ &
 echo Hit [ENTER] to break in with gdb
 read
 TEXT=`ps ax | grep floppy.386 | grep -v grep`

@@ -134,6 +134,17 @@ void dsh_parse(char *l) {
 		port = atoi(l); byte = inb(port);
 		printf("io port 0x%4x = 0x%x\n", port, byte);
 	} else
+	if (!strncmp("int", l, wl)) {
+		int vec;
+		l = l + wl + 1; 
+		if (!(wl = next_word(l, ' '))) {
+			print("usage: int <decimal vector>\n"); return;
+		}
+		vec = atoi(l);
+		printf("raising INT %d\n", vec);
+		extern void raise_int_vector(u_int32_t vec);
+		raise_int_vector(vec);
+	} else
 	if (!strncmp("inw", l, wl)) {
 		int port; int word;
 		l = l + wl + 1; 

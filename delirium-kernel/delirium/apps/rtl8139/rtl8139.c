@@ -41,14 +41,14 @@ void rtl8139_handle_irq() {
 	}
 }
 
-static void init_rtl8139_pci(int irq, int base_port) {
+static int init_rtl8139_pci(int irq, int base_port) {
 	dump_pci_config();
 
 	printf("%s: finding PCI config space... ", __func__);
 	u_int32_t pciaddr = find_pci_by_id(0x10ec, 0x8139);
 	if (!pciaddr) {
 		print("Couldn't find PCI device 10ec:8139\n");
-		return;
+		return 0;
 	}
 	printf("0x%8x\n", pciaddr);
 
@@ -60,7 +60,7 @@ static void init_rtl8139_pci(int irq, int base_port) {
 		printf("%s: PCI BAR%d: 0x%8x\n", __func__, barnum, bar ^ 1);
 		if (barnum != 0) {
 			printf("%s: expected this to be BAR0. Aborting PCI setup\n");
-			return;
+			return 0;
 		}
 		break;
 	}
@@ -76,12 +76,15 @@ static void init_rtl8139_pci(int irq, int base_port) {
 	write_PCI_reg(pciaddr, PCI_REG_STATCMD, 0x07);
 	statcmd = read_PCI_reg(pciaddr, PCI_REG_STATCMD);
 	printf("%s: status/command PCI reg: status %4x, cmd %4x\n", __func__,  statcmd >> 16, statcmd & 0xffff);
+
+	return 1;
 }
 static void init_rtl8139(int irq, int base_port) {
 	hwirq = irq;
 	baseio = base_port;
 
-	init_rtl8139_pci(irq, base_port);
+	if (!  init_rtl8139_pci(irq, base_port))
+		return;
 
 	printf("%s: setting up. irq: %d, io: 0x%x\n", __func__, hwirq, baseio);
 	print("irqhook... ");

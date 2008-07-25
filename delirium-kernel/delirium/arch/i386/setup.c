@@ -14,7 +14,6 @@
 #include "i386/pic.h"
 #include "i386/io.h"
 
-
 extern interrupt_desc_t _idt_base;
 extern interrupt_desc_t _idt_interrupt_template;
 static interrupt_desc_t * idt = &_idt_base;
@@ -35,13 +34,27 @@ void add_handler(u_int16_t offset, void (*handler)(void)) {
 	union uptr hptr = { .vp = handler };
 	void *idtEntry = &(idt[offset]);
 
-	kmemcpy(idtEntry, (void *)(&_idt_interrupt_template), 16);
+	kmemcpy(idtEntry, (void *)(&_idt_interrupt_template), sizeof(interrupt_desc_t));
 	idt[offset].offset_0_15 = hptr.w[0];
 	idt[offset].offset_16_31 = hptr.w[1];
 #ifdef DEBUG
 	dump_idt_entry(offset);
 #endif
 }
+
+volatile interrupt_handler_t shimmed_hwirq_handler_hooks[16];
+
+/* 
+ * handle a shimmed IRQ 
+ */
+void handle_shimmed_isr(u_int32_t hwirq) {
+	if (shimmed_hwirq_handler_hooks[hwirq] != NULL) {
+		(shimmed_hwirq_handler_hooks[hwirq])();
+		return;
+	}
+	kprintf("(hwirq %d)", hwirq);
+}
+
 
 
 /* wrap a C hardware IRQ  handler and install it in the IDT
@@ -53,24 +66,19 @@ void add_handler(u_int16_t offset, void (*handler)(void)) {
  * Users can just write their own ASM interrupt handlers if they really
  * want, but it's probably more stable to have all the ISR bugs in one place.
  */
-void add_c_interrupt_handler(u_int8_t hw_interrupt, void (*handler)(void)) {
-	/* really don't want to have this firing off while we are
-	 * changing the ISR
-	 */
-	//asm(" cli");
-	pic_mask_interrupt(hw_interrupt);
-	add_c_isr(hw_interrupt, handler);
-	pic_unmask_interrupt(hw_interrupt);
-	//asm(" sti");
+void add_c_interrupt_handler(u_int32_t hwirq, void (*handler)(void)) {
+	kprintf("%s: %d -> 0x%8x\n", __func__, hwirq, handler);
+	shimmed_hwirq_handler_hooks[hwirq] = handler;
+	pic_unmask_interrupt(hwirq);
 }
 
 /* 
  * mask the interrupt and replace the interrupt handler 
  * with the default one
  */
-void remove_interrupt_handler(u_int8_t hw_interrupt) {
+void remove_interrupt_handler(u_int32_t hw_interrupt) {
 	pic_mask_interrupt(hw_interrupt);
-	add_handler(INTR_BASE + hw_interrupt, &default_interrupt_handler);
+	shimmed_hwirq_handler_hooks[hw_interrupt] = NULL;
 }
 
 void setup_memory() {
@@ -102,8 +110,6 @@ void setup_timer() {
 }
 
 void setup_interrupts() {
-	int i;
-
 	kdebug("setup_interrupts entry");
 	kdebug("disable_interrupts");
 	asm volatile ("	CLI");
@@ -147,15 +153,39 @@ void setup_interrupts() {
 	/*
 	 * default interrupt handler for external interrupts
 	 */
+	int i;
+	for (i=0; i<16; ++i) 
+		shimmed_hwirq_handler_hooks[i] = 0;
 	kdebug("Setting up default handler for external interrupts");
-	for (i=INTR_BASE; i<INTR_BASE + INTR_COUNT; i++)
-		add_handler(i, &default_interrupt_handler);
+	extern void isr_shim_0(); extern void isr_shim_1(); extern void isr_shim_2();
+	extern void isr_shim_3(); extern void isr_shim_4(); extern void isr_shim_5();
+	extern void isr_shim_6(); extern void isr_shim_7(); extern void isr_shim_8();
+	extern void isr_shim_9(); extern void isr_shim_10(); extern void isr_shim_11();
+	extern void isr_shim_12(); extern void isr_shim_13(); extern void isr_shim_14();
+	extern void isr_shim_15();
+	add_handler(INTR_BASE + 0,  &isr_shim_0);
+	add_handler(INTR_BASE + 1,  &isr_shim_1);
+	add_handler(INTR_BASE + 2,  &isr_shim_2);
+	add_handler(INTR_BASE + 3,  &isr_shim_3);
+	add_handler(INTR_BASE + 4,  &isr_shim_4);
+	add_handler(INTR_BASE + 5,  &isr_shim_5);
+	add_handler(INTR_BASE + 6,  &isr_shim_6);
+	add_handler(INTR_BASE + 7,  &isr_shim_7);
+	add_handler(INTR_BASE + 8,  &isr_shim_8);
+	add_handler(INTR_BASE + 9,  &isr_shim_9);
+	add_handler(INTR_BASE + 10, &isr_shim_10);
+	add_handler(INTR_BASE + 11, &isr_shim_11);
+	add_handler(INTR_BASE + 12, &isr_shim_12);
+	add_handler(INTR_BASE + 13, &isr_shim_13);
+	add_handler(INTR_BASE + 14, &isr_shim_14);
+	add_handler(INTR_BASE + 15, &isr_shim_15);
 
 	kdebug("calling setup_idt");
 	setup_idt();
 	kdebug("enabling interrupts");
 	asm volatile ("	STI");
 }
+
 
 #if 0
 _IVEC_0	"Divide by zero FAULT"

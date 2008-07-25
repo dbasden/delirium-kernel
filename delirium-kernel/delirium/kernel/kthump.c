@@ -287,7 +287,7 @@ void setup_kthump() {
 #endif
 
 	key_soap = get_new_soapbox("/hardware/keyboard");
-	add_c_isr(INT_KEYBOARD, &atKeyboardISR);
+	add_c_interrupt_handler(INT_KEYBOARD, &atKeyboardISR);
 	pic_unmask_interrupt(INT_KEYBOARD);
 
 	/* Enable keyboard interrupts */

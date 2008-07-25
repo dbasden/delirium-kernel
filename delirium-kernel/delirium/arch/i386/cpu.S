@@ -20,7 +20,7 @@ meditate:
 	pushl	%ebp
 	mov	%esp, %ebp
 	cli
-	call backtrace
+	//call backtrace
 	pusha	// EAX ECX EDX EBX ESP EBP ESI EDI
 	pushf
 	pushl	%gs
