@@ -5,6 +5,7 @@
 ./apps/eve/dsh.o: ./include/delirium.h ./include/soapbox.h
 ./apps/eve/dsh.o: ./include/ramtree.h ./include/rant.h ./include/ipc.h
 ./apps/eve/dsh.o: ./include/dlib/cqueue.h ./apps/eve/readline.h
+./apps/eve/dsh.o: ./include/i386/io.h
 ./apps/eve/elf.o: ./include/delirium.h ./include/elf.h ./include/paging.h
 ./apps/eve/elf.o: ./include/i386/paging.h
 ./apps/eve/eve.o: ./include/delirium.h ./include/ipc.h
@@ -18,10 +19,10 @@
 ./apps/lib/vga/vga.o: ./apps/lib/vga/vga.h ./apps/lib/vga/vga_modes.h
 ./apps/lib/vga/vga_modes.o: ./include/delirium.h ./apps/lib/vga/vga.h
 ./apps/lib/vga/vga_modes.o: ./include/delirium.h ./apps/lib/vga/vga.h
-./apps/life/life.o: ./include/delirium.h
 ./apps/slip/tcp.o: ./include/assert.h ./include/delirium.h ./include/klib.h
 ./apps/slip/tcp.o: ./include/ipc.h ./include/dlib/cqueue.h
-./apps/slip/tcp.o: ./include/soapbox.h ./include/rant.h ./apps/slip/tcp.h
+./apps/slip/tcp.o: ./include/soapbox.h ./include/rant.h ./include/cpu.h
+./apps/slip/tcp.o: ./include/i386/cpu.h ./include/ktimer.h ./apps/slip/tcp.h
 ./apps/slip/tcp.o: ./apps/slip/ipv4.h
 ./apps/slip/tcp.o: ./include/delirium.h ./include/soapbox.h ./include/ipc.h
 ./apps/slip/tcp.o: ./include/dlib/cqueue.h ./apps/slip/ipv4.h
@@ -44,16 +45,26 @@
 ./apps/slip/slip.o: ./include/rant.h ./include/i386/interrupts.h
 ./apps/slip/slip.o: ./include/i386/io.h ./include/assert.h ./include/klib.h
 ./apps/slip/slip.o: ./apps/slip/slip.h ./apps/slip/ipv4.h
+./apps/slip/tcp_test_server.o: ./include/delirium.h ./include/assert.h
+./apps/slip/tcp_test_server.o: ./include/klib.h ./include/ipc.h
+./apps/slip/tcp_test_server.o: ./include/dlib/cqueue.h ./include/soapbox.h
+./apps/slip/tcp_test_server.o: ./include/rant.h ./apps/slip/tcp.h
+./apps/slip/tcp_test_server.o: ./apps/slip/ipv4.h
 ./apps/test/test.o: ./include/delirium.h ./include/assert.h ./include/klib.h
 ./apps/test/test.o: ./include/stdarg.h ./include/cpu.h ./include/i386/cpu.h
-./apps/test/test.o: ./include/ipc.h ./include/dlib/cqueue.h
-./apps/test/test.o: ./include/soapbox.h ./include/rant.h
+./apps/test/test.o: ./include/ktimer.h ./include/soapbox.h ./include/ipc.h
+./apps/test/test.o: ./include/dlib/cqueue.h ./include/rant.h
 ./apps/testfaults/testfaults.o: ./include/delirium.h
 ./apps/fishy/dsh.o: ./include/delirium.h ./apps/eve/readline.h
 ./apps/fishy/fishy.o: ./include/delirium.h ./include/ipc.h
 ./apps/fishy/fishy.o: ./include/dlib/cqueue.h ./include/rant.h
 ./apps/fishy/fishy.o: ./include/soapbox.h ./apps/eve/readline.h
 ./apps/life2/life2.o: ./include/delirium.h
+./apps/rtl8139/pci.o: ./include/delirium.h ./include/i386/io.h
+./apps/rtl8139/pci.o: ./apps/rtl8139/pci.h
+./apps/rtl8139/pci.o: ./include/delirium.h
+./apps/rtl8139/rtl8139.o: ./include/delirium.h ./include/i386/interrupts.h
+./apps/rtl8139/rtl8139.o: ./include/i386/io.h ./apps/rtl8139/pci.h
 ./apps/crt0.o: ./include/i386/interrupts.h ./include/delirium.h
 ./apps/delibrium/lib.o: ./include/delirium.h ./include/stdarg.h
 ./apps/delibrium/timer.o: ./include/delirium.h
@@ -100,6 +111,7 @@
 ./arch/i386/paging.o: ./include/dlib/bitvec.h ./include/klib.h
 ./arch/i386/paging.o: ./include/kvga.h ./include/i386/interrupts.h
 ./arch/i386/setup.o: ./include/delirium.h ./include/klib.h ./include/kvga.h
+./arch/i386/setup.o: ./include/ktimer.h ./include/soapbox.h
 ./arch/i386/setup.o: ./include/i386/cpu.h ./include/i386/mem.h
 ./arch/i386/setup.o: ./include/i386/interrupts.h ./include/i386/pic.h
 ./arch/i386/setup.o: ./include/i386/io.h
@@ -156,15 +168,15 @@
 ./kernel/rant.o: ./include/cpu.h ./include/i386/cpu.h ./include/paging.h
 ./kernel/rant.o: ./include/i386/paging.h ./include/soapbox.h ./include/ipc.h
 ./kernel/rant.o: ./include/dlib/cqueue.h ./include/rant.h
-./kernel/rant.o: ./apps/delibrium/dlib/memherd.h
-./kernel/rant.o: ./apps/delibrium/dlib/bitvec.h ./include/dlib/queue.h
 ./kernel/rant.o: ./include/multitask.h ./include/i386/task.h
-./kernel/rant.o: ./include/i386/gdt.h
-./kernel/soapbox.o: ./include/delirium.h ./include/dlib/map.h
-./kernel/soapbox.o: ./include/dlib/bsearchtree.h ./include/dlib/btree.h
-./kernel/soapbox.o: ./include/cpu.h ./include/i386/cpu.h ./include/paging.h
-./kernel/soapbox.o: ./include/i386/paging.h ./include/klib.h
-./kernel/soapbox.o: ./include/soapbox.h
+./kernel/rant.o: ./include/i386/gdt.h ./include/dlib/queue.h
+./kernel/rant.o: ./apps/delibrium/dlib/memherd.h
+./kernel/rant.o: ./apps/delibrium/dlib/bitvec.h
+./kernel/soapbox.o: ./include/delirium.h ./include/assert.h ./include/klib.h
+./kernel/soapbox.o: ./include/dlib/map.h ./include/dlib/bsearchtree.h
+./kernel/soapbox.o: ./include/dlib/btree.h ./include/cpu.h
+./kernel/soapbox.o: ./include/i386/cpu.h ./include/paging.h
+./kernel/soapbox.o: ./include/i386/paging.h ./include/soapbox.h
 ./kernel/gdb-stub.o: ./include/delirium.h ./include/klib.h
 ./kernel/kernel.o: ./include/delirium.h ./include/cpu.h ./include/i386/cpu.h
 ./kernel/kernel.o: ./include/multiboot.h ./include/elf.h
@@ -174,7 +186,7 @@
 ./kernel/kernel.o: ./include/frameherd.h ./include/dlib/bitvec.h
 ./kernel/kernel.o: ./include/kthump.h ./include/soapbox.h ./include/rant.h
 ./kernel/kernel.o: ./include/ipc.h ./include/dlib/cqueue.h
-./kernel/kernel.o: ./include/ramtree.h ./include/kpools.h
+./kernel/kernel.o: ./include/ramtree.h ./include/kpools.h ./include/kvga.h
 ./kernel/frameherd.o: ./include/delirium.h ./include/assert.h
 ./kernel/frameherd.o: ./include/klib.h ./include/cpu.h ./include/i386/cpu.h
 ./kernel/frameherd.o: ./include/dlib/bitvec.h ./include/frameherd.h
@@ -184,6 +196,9 @@
 ./kernel/kthump.o: ./include/soapbox.h ./include/cpu.h ./include/i386/cpu.h
 ./kernel/kthump.o: ./include/i386/interrupts.h ./include/i386/pic.h
 ./kernel/kthump.o: ./include/i386/io.h ./include/kthump.h
+./kernel/ktimer.o: ./include/delirium.h ./include/soapbox.h ./include/ipc.h
+./kernel/ktimer.o: ./include/dlib/cqueue.h ./include/rant.h ./include/cpu.h
+./kernel/ktimer.o: ./include/i386/cpu.h ./include/ktimer.h
 ./include/dlib/map.o: ./include/dlib/map.h ./include/dlib/bsearchtree.h
 ./include/dlib/map.o: ./include/dlib/btree.h
 ./include/dlib/map.o: ./include/dlib/bsearchtree.h ./include/dlib/btree.h
@@ -208,4 +223,5 @@
 ./include/rant.o: ./include/dlib/cqueue.h
 ./include/soapbox.o: ./include/delirium.h
 ./include/frameherd.o: ./include/delirium.h ./include/dlib/bitvec.h
+./include/ktimer.o: ./include/delirium.h ./include/soapbox.h
 ./include/assert.o: ./include/delirium.h ./include/klib.h

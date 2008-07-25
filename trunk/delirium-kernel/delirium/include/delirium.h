@@ -60,7 +60,7 @@ extern void print(char *);
 extern void kill_current_thread();
 extern int splinter(void *start(), void *stackp);
 extern void add_interrupt_handler(u_int16_t offset, void (*handler)(void));
-extern void add_c_interrupt_handler(u_int8_t hw_int, void (*handler)(void));
+extern void add_c_interrupt_handler(u_int32_t hwirq, void (*handler)(void));
 extern void remove_interrupt_handler(u_int8_t hw_int);
 
 #endif

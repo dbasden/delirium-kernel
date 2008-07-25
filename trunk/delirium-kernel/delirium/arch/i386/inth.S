@@ -1,12 +1,5 @@
 /* inth.S - Interrupt Handlers */
 
-	.text
-	.globl	do_context_switch, default_interrupt_handler
-	.globl  abort_handler, trap_handler, fault_handler
-	.globl	inth_timer, inth_kill_current_thread, tempstack
-	.globl	early_timer_isr
-
-
 /*
  * Push_Context, Switch_Context and Pop_Context
  *
@@ -24,66 +17,112 @@
 	// and EFLAGS being changed in a lower protection level by another
 	// thread in the same program
 	//
-	.macro Push_Context
+.macro Push_Context
 	push %ds
 	push %ss
 	pusha	// Add EAX ECX EDX EBX ESP EBP ESI EDI
-	.endm
+.endm
 
-	.macro Switch_Context
+.macro Switch_Context
 	movl	%esp, %eax
 	push 	%eax
 	call	get_next_switch
 
 	/* Returned should be the SP for the new task, with context on stack */
 	movl	%eax, %esp	
-	.endm
+.endm
 
 	/* Alternate for Switch_Context is to kill the switched out thread */
-	.macro Switch_Kill
+.macro Switch_Kill
 	movl	%esp, %eax
 	push 	%eax
 	call	kill_current_thread
 	movl	%eax, %esp	
-	.endm
+.endm
 
 	//
 	// All the info we want to save from the previous task is now
 	// on the stack. Change EBP to here, and pass it to
 	// get_next_switch
 	// 
-	.macro Pop_Context
+.macro Pop_Context
 	popa		// Restore EAX ECX EDX EBX ESP EBP ESI EDI
 	pop %ss		// Restore stack sement
 	pop %ds		// Restore data segment
-	.endm
+.endm
 
-	.macro EOI_pic_lo
-	mov 	$0x20,	%al
-	outb	%al,	$0x20
-	.endm
+.macro pic_EOI_master
+		mov	$0x20, %al
+		outb	%al, $0x20
+.endm
 
-	.macro EOI_pic_hi
-	mov 	$0x20,	%al
-	outb	%al,	$0xa0
-	outb	%al,	$0x20
-	.endm
+.macro pic_EOI_slave_and_master
+		mov	$0x20,	%al
+		outb	%al,	$0xa0
+		outb	%al,	$0x20
+.endm
 
-	.macro HW_Int_Hook inum
-	.text
-isr_hook_\inum:	.globl isr_hook_\inum
+	//
+	// shims to allow hardware interrupts to be switched in C
+	//
+.altmacro
+.macro	MakeISRshim	vec=0,lastvec=15
+	.globl isr_shim_\vec
+	.align	8
+isr_shim_\vec:
 	Push_Context
-	mov (C_isr_p + (\inum * 4)), %eax
-	call *%eax
-	Pop_Context
-	.if (\inum < 8)
-	EOI_pic_lo
-	.else
-	EOI_pic_hi
-	.endif
-	iret
-	.endm
 
+	pushl	$\vec
+	call	handle_shimmed_isr
+	addl	$4, %esp
+
+
+	.if (\vec < 8)
+	pic_EOI_master
+	.else
+	pic_EOI_slave_and_master
+	.endif
+
+	Pop_Context
+
+	iret
+
+	.if (\vec-\lastvec)
+		MakeISRshim %(\vec+1), \lastvec
+	.endif
+.endm
+
+	//
+	// actual code starts here
+	//
+
+	.text
+
+	.align	8
+
+	.globl	do_context_switch
+	.globl  abort_handler, trap_handler, fault_handler
+	.globl	early_timer_isr, inth_timer
+	.globl	inth_kill_current_thread
+
+	//
+	// ISR shims
+	//
+	MakeISRshim	0,15
+
+
+	#ifdef TWO_YEAR_OLD
+	//
+	// Contribution from my daughter
+	//		 -- DGB Jul08 
+                     7hjkhggkj
+                     
+                     
+                     
+                     
+                     kvkkkkjhjjtj555555555555224444444uuuuuuuuuuuuiuuuuun99o 05555555555555555555555555555555555555555555555555555555555555555555555555555555555444444444444444444	3333333333333312111806877/
+                     yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyttttttttttttttttttttttttttttttttttttttttttrrrrtd6yrmhty8enmborocjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjkkkkllp[]\\\//'//////////.....,,,,,,j6urtgnv hb eeeeeeeeeeeeeeeeeeeeeeeeeeeeerrrrrrrrrrrrrrrrrrr22o,cv  n y  nr7ybyfyynnghhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj,,,,u7e6675757722222222222222223222277777777777733333333333333333333333333111111````````00000000000000000000000iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiggggffffffdddddbbbbbbbbaaaaaababbababababaaaaaassssszxxxxxxxxxxxxxzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzllllllkkkjjjjjkiiiiuuuupooooopoQA	QAAAqaAQAQwwwwwWWWWQWQA
+       #endif
 
 do_context_switch: 	/* Software vector handler for requested context switch (YIELD) */
 	cli
@@ -94,25 +133,15 @@ do_context_switch: 	/* Software vector handler for requested context switch (YIE
 
 inth_kill_current_thread:
 	cli
-#if 0
-	// This was probably an earlier attempt at stopping 
-	// a triple-fault if the CPU context was all over the place
-	// This shoudl now be handled before this point
-	mov	%esp, %ebp
-	mov 	$(tempstack + 0x1000),	%esp
-	pushl	8(%ebp)
-	pushl	4(%ebp)
-#endif
 	Push_Context
 	Switch_Kill
 	Pop_Context
 	iret
 
-early_timer_isr:
-	// Used before task setup puts inth_timer in place
+early_timer_isr:	/* Handle timer interrupt before task switching */
 	Push_Context
 	call ktimer_on_timer_tick
-	EOI_pic_lo
+	pic_EOI_master
 	Pop_Context
 	iret
 
@@ -120,94 +149,21 @@ inth_timer:		/* Handle timer interrupt */
 	Push_Context
 	call ktimer_on_timer_tick
 	Switch_Context
-	EOI_pic_lo
+	pic_EOI_master
 	Pop_Context
 	iret
 
 
-default_interrupt_handler:
-	Push_Context	 // Save the context! Collect the whole set!
-
-#if 0
-	mov	$0x10, %ax	// Enforce kernel DS and SS
-	mov	%ax, %ds
-	mov	%ax, %ss
-#endif
-
-	pushl	%ebp
-	movl	%esp, %ebp
-	subl	$0x0c, %esp
-
-	pushl	0x1c(%ebp)
-	pushl	0x19(%ebp)
-	pushl	$(ih_string)
-	call	kprintf
-	addl	$0x0c, %esp
-
-	call	kvga_spin
-
-	EOI_pic_lo
-	cmpl	$8, 0x19(%ebp)
-	jb	0f
-	EOI_pic_hi
-0:	movl	%ebp, %esp
-	popl	%ebp
-
-
-	Pop_Context
-	iret
-
-// Stubs to hook ISRs into C
-	HW_Int_Hook 0
-	HW_Int_Hook 1
-	HW_Int_Hook 2
-	HW_Int_Hook 3
-	HW_Int_Hook 4
-	HW_Int_Hook 5
-	HW_Int_Hook 6
-	HW_Int_Hook 7
-	HW_Int_Hook 8
-	HW_Int_Hook 9
-	HW_Int_Hook 10
-	HW_Int_Hook 11
-	HW_Int_Hook 12
-	HW_Int_Hook 13
-	HW_Int_Hook 14
-	HW_Int_Hook 15
-
-	/* table of pointers to the C ISR wrapper hooks */
-	.globl c_isr_wrapper_table
-        .align 8
-c_isr_wrapper_table:
-	.long	[isr_hook_0]
-	.long	[isr_hook_1]
-	.long	[isr_hook_2]
-	.long	[isr_hook_3]
-	.long	[isr_hook_4]
-	.long	[isr_hook_5]
-	.long	[isr_hook_6]
-	.long	[isr_hook_7]
-	.long	[isr_hook_8]
-	.long	[isr_hook_9]
-	.long	[isr_hook_10]
-	.long	[isr_hook_11]
-	.long	[isr_hook_12]
-	.long	[isr_hook_13]
-	.long	[isr_hook_14]
-	.long	[isr_hook_15]
-
-	//---------------------------
-	// When the bad things happen
-	//---------------------------
-	.macro HandlerSafety
+.macro HandlerSafety
+	// possibly overkill
 	cli
 	mov	%esp, %eax
 	movl 	$(tempstack + 0x0ff0), %esp
 	pushl	%eax	// Old ESP
 	pushl	%ebp	// Old EBP
-	mov	%esp, %ebp
 	Push_Context
-	.endm
+	mov	%esp, %ebp
+.endm
 
 abort_handler:
 	HandlerSafety
@@ -216,25 +172,22 @@ abort_handler:
 trap_handler:
 	HandlerSafety
 	pushl $(trap_string)
-	jmp 1f
 1:
-	call vgaprint_cli
-	//jmp	meditate
-	int	$0x43
+	call	vgaprint_cli
+	int	$0x43	// kill current thread
 
 fault_handler:
+	cli
 	pushl	%ebp
 	movl	%esp,%ebp
 	pushl	running_thread_id
 	pushl	4(%ebp)
 	pushl	$(fault_string)
+	call	kprintf
+	int	$0x43	// kill current thread
 
 	.data
-	.globl C_isr_p
-	.comm	C_isr_p, (256 * 4)
 
-ih_string:
-	.asciz	"<Uncaught interrupt: 0x%08x 0x%08x>"
 abort_string:
 	.asciz	"Default abort handler called.\n"
 trap_string:

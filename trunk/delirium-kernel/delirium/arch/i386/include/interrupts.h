@@ -40,7 +40,6 @@ typedef struct {
 inline void config_interrupts();
 
 /* inth.S */
-void default_interrupt_handler();
 void fault_handler();
 void trap_handler();
 void abort_handler();
@@ -53,25 +52,19 @@ typedef void(*interrupt_handler_t)(void);
 
 /* setup.c */
 void add_handler(u_int16_t offset, void (*handler)(void));
-
-/* black magic */
+void add_c_interrupt_handler(u_int32_t hwirq, void (*handler)(void));
 
 #if 0
-#define __add_c_isr(__hwint, __handler)\
-	        ({extern void isr_hook_ ## __hwint();\
-	          (&C_isr_p)[(__hwint)] = (void *)(__handler);\
-	          add_handler(INTR_BASE+(__hwint), &isr_hook_ ## __hwint);})
-#define add_c_isr(__hwint, __handler) __add_c_isr(__hwint, __handler)
-#endif
-
+/* black magic */
 #define __add_c_isr(__hwint, __handler)\
                 ({ (&C_isr_p)[(__hwint)] = (void *)(__handler);\
                   add_handler(INTR_BASE+(__hwint), c_isr_wrapper_table[(__hwint)]);})
 #define add_c_isr(__hwint, __handler) __add_c_isr(__hwint, __handler)
-
 extern	void **C_isr_p;
 extern interrupt_handler_t c_isr_wrapper_table[];
+#endif
 
+#define add_c_isr	add_c_interrupt_handler
 
 #endif	/* ifndef ASM */
 
