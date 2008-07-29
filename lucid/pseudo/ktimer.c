@@ -36,7 +36,9 @@ static u_int32_t tick_update_useconds;
 static inline struct ktimer * pop_timer(struct ktimer * volatile *stack_head) {
 	/* threadsafe */
 	struct ktimer *taken;
-	do { taken = *stack_head;
+	do {
+		taken = *stack_head;
+		if (taken == NULL) return NULL;
 	} while ((void *)cmpxchg(*stack_head, taken->next, taken) != taken);
 	return taken;
 }
