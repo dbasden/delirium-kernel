@@ -115,7 +115,7 @@ void ktimer_on_timer_tick() {
  * returns non-zero on success
  * returns 0 if the timer couldn't be added
  */
-int add_ktimer(soapbox_id_t callback_soapbox, u_int32_t update_usecs, u_int32_t shots, u_int64_t signal) {
+int add_ktimer(soapbox_id_t callback_soapbox, u_int64_t update_usecs, u_int32_t shots, u_int64_t signal) {
 	struct ktimer *ktp;
 
 	ktp = pop_timer(&unused_timers_head);

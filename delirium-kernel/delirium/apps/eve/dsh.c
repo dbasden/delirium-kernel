@@ -6,25 +6,16 @@
 #include "readline.h"
 #ifdef ARCH_i386
 #include <i386/io.h>
+#include <i386/cpu.h>
 #endif
 
 #define PROMPT 	"eve) "
-#define HELP	"? date help moof run signal inb outb inw outw inl outl\n"
+#define HELP	"? date help moof run signal inb outb inw outw inl outl int triplefault\n"
 
 
 extern void eve_elf_load(void *elf_image);
 
 void prompt() { print(PROMPT); }
-
-#if 0
-/* Now in delibrium*/
-int strncmp(char *s1, char *s2, int c) {
-	for (; c && *s1 && *s2; c--, s1++, s2++)
-		if (*s1 != *s2)
-			return (int) (*s1 - *s2);
-	return 0;
-}
-#endif
 
 // returns num of characters in the next word
 static int next_word(char * line, char token) {
@@ -72,7 +63,6 @@ static void break_tests() {
 	send_signal("kdebug/thread", 0);
 	print("eve break_tests(): Done\n");
 }
-
 
 void dsh_parse(char *l) {
 	int wl;
@@ -124,6 +114,10 @@ void dsh_parse(char *l) {
 	if (!strncmp("yes", l, wl)) {
 		print("So that's some fries.\nWould you like fries with that?\n");
 #ifdef ARCH_i386
+	} else 
+	if (!strncmp("triplefault", l, wl)) {
+		print("Triple-faulting...\n");
+		_triple_fault();
 	} else 
 	if (!strncmp("inb", l, wl)) {
 		int port; int byte;

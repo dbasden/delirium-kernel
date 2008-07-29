@@ -132,8 +132,16 @@ void dream() {
 	printf("Testing timers\n");
 	soapbox_id_t timersb = get_new_anon_soapbox();
 	supplicate(timersb, test_timer_rx);
+	#if 0
 	add_timer(timersb, 1000, 10, 1000); /* Every 1ms */
 	add_timer(timersb, 1000000, 10, 1); /* Every 1s */
+	#endif
+	add_timer(timersb, 1000000, 1, 1); /*One shot, 1s*/
+	add_timer(timersb, 2000000, 1, 1); /*One shot, 2s*/
+	add_timer(timersb, 4000000, 1, 1); /*One shot, 4s*/
+	add_timer(timersb, 8000000, 1, 1); /*One shot, 8s*/
+	add_timer(timersb, 16000000, 1, 1); /*One shot, 16s*/
+
 #if 0
 
 	printf("Testing interrupt handler\n");
