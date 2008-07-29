@@ -1,0 +1,13 @@
+lucid is a compile-time wrapper to allow DeLiRiuM apps to run in
+unix userspace. It works enough to hook the TCP stack up
+
+Things working:
+	- IPC (rants, soapboxes etc)
+	- Memory allocation (both getpage and kpools)
+	- serial port emulation/hooks through to a pty
+
+Things not working
+	- kherdpages
+	- threads (currently just running the entry point and processing
+	  rants in a global event loop)
+	- ktimer  (although mostly done)
