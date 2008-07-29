@@ -13,11 +13,24 @@
 #include "tcp.h"
 
 
+#define _tcpc_hash(_tcpc)	 \
+	((_tcpc)->endpoints.local_addr ^ \
+	 (_tcpc)->endpoints.remote_addr ^ \
+	 (_tcpc)->endpoints.local_port ^ \
+	 (_tcpc)->endpoints.remote_port)
+#define _statestr(_tcpc)	(tcp_state_string[(_tcpc)->current_state])
+
 #undef TCPDEBUG
+#define TCPDEBUG_print(_s)
 #ifdef TCPDEBUG
+#if 0
 #define TCPDEBUG_print(_s)	{print("[tcp] "); print( (char *) __func__ ); print(": " _s);}
+#endif
+#define DEBUG_printf(_tcpc, _va)	{printf("(%8x %s: ",_tcpc_hash(_tcpc), _statestr(_tcpc)); printf _va ; print(")\n");}
+
 #else
 #define TCPDEBUG_print(_s)
+#define DEBUG_printf(a,b)
 #endif
 
 #define TCP_CALC_CHECKSUM	1
@@ -148,7 +161,7 @@ static inline void init_tcp_connection(tcp_state_t *tcpc) {
 	tcpc->tx.retransmit_timeout = 2500; /* ms */
 	tcpc->tx.srtt = 2500;
 	tcpc->tx.rtt_variance = 0;
-	tcpc->tx.current_rto_id = 0;
+	tcpc->tx.current_rto_id = get_initial_id();
 }
 
 /* Get a pointer to a free connection in the connection table
@@ -201,6 +214,22 @@ static inline tcp_state_t * match_tcp_connection(struct IPv4_Header *iphead) {
 	 * otherwise return NULL
 	 */
 	return listening_connection;
+}
+
+/* Cancel any outstanding RTO timer */
+static inline void clear_rto_timer(tcp_state_t * tcpc) {
+	tcpc->tx.current_rto_id++; /* handler will ignore outstanding IDs */
+}
+
+/* Restart the retransmission timer */
+static inline void restart_rto_timer(tcp_state_t * tcpc) {
+	tcpc->tx.current_rto_id++;
+	DEBUG_printf(tcpc, ("Setting new timer for %dus id %d", tcpc->tx.retransmit_timeout * 1000, tcpc->tx.current_rto_id));
+
+	#define TCP_SIGNAL_TIMER_FLAG	((u_int64_t)0x1000 << 32)
+	/* Set some high bits above the first 32 to distinguish from timer events and user signams */
+	add_timer(tcpc->soapbox_from_application, 
+		  tcpc->tx.retransmit_timeout * 1000, 1, (u_int64_t)(tcpc->tx.current_rto_id) | TCP_SIGNAL_TIMER_FLAG);
 }
 
 /*
@@ -504,17 +533,17 @@ static inline void handle_established_inbound(tcp_state_t * tcpc, message_t msg,
 		/* TODO: send more stuff */
 		tcpc->tx.oldest_unack_seq = seg_ack;
 
+		DEBUG_printf(tcpc, ("New ack to %d. next_seq %d. oldtimer %d", seg_ack, tcpc->tx.seq_next, tcpc->tx.current_rto_id));
 		/* Invalidate the current RTO timer */
-		tcpc->tx.current_rto_id++;
+		clear_rto_timer(tcpc);
 
 		/* Free fully acked data blocks */
 		tcp_queue_pop_acked(&tcpc->txwindowdata, seg_ack);
 
 		/* Set another timer iff there is unacked data outstanding */
-		if (tcpc->tx.oldest_unack_seq < tcpc->tx.seq_next)
-			add_timer(tcpc->soapbox_from_application, 
-				  tcpc->tx.retransmit_timeout * 1000, 1,
-				  tcpc->tx.current_rto_id);
+			if (tcpc->tx.oldest_unack_seq < tcpc->tx.seq_next) {
+				restart_rto_timer(tcpc);
+		}
 	}
 
 	if (seg_ack >= tcpc->tx.oldest_unack_seq) {
@@ -777,12 +806,11 @@ static inline void queue_outbound_user_data(tcp_state_t *tcpc, message_t msg) {
 
 	/* Put the user data into the retransmission data queue */
 	tcp_insert_into_queue(&tcpc->txwindowdata, msg, startseq);
+	DEBUG_printf(tcpc, ("New txdata to seq %u Setting new timer for %uus id %u", tcpc->tx.seq_next, tcpc->tx.retransmit_timeout * 1000, tcpc->tx.current_rto_id));
 
-	/* Restart the retransmission timer */
-	tcpc->tx.current_rto_id++;
-	add_timer(tcpc->soapbox_from_application, 
-		  tcpc->tx.retransmit_timeout * 1000, 1, tcpc->tx.current_rto_id);
+	restart_rto_timer(tcpc);
 }
+
 
 static inline void tcp_handle_rto_timer(tcp_state_t * tcpc, message_t msg) {
 	if (tcpc->tx.current_rto_id != (u_int32_t)msg.m.signal)
@@ -792,8 +820,17 @@ static inline void tcp_handle_rto_timer(tcp_state_t * tcpc, message_t msg) {
 			return;
 		default: ;
 	}
+	if (tcpc->tx.oldest_unack_seq == tcpc->tx.seq_next)
+		return; /* No outstanding segments */
+	DEBUG_printf(tcpc, ("RTO %d. seq_next %d unacked %d", msg.m.signal, tcpc->tx.seq_next, tcpc->tx.oldest_unack_seq));
 	printf("Blatently ignoring legit RTO timer. state: %s\n",
 		tcp_state_string[(int)(tcpc->current_state)]);
+}
+
+static inline void tcp_handle_app_signal(tcp_state_t * tcpc, message_t msg) {
+	assert ( msg.type == signal );
+	DEBUG_printf(tcpc, ("Ignoring signal from app: %u", msg.m.signal));
+	return;
 }
 
 /* Process data an application wishes to send out via TCP
@@ -812,19 +849,29 @@ void tcp_handle_outbound_data(message_t msg) {
 				break;
 		}
 	}
+
+	if (tcpc == NULL || tcpc->current_state == closed) {
+		TCPDEBUG_print("spurious message received without associated connection. ignoring.\n");
+		if (msg.type == gestalt)
+			tcp_ignore_data(msg);
+		return;
+	}
 	
 	if (msg.type == signal) {
-		/* RTO timer event */
-		tcp_handle_rto_timer(tcpc, msg);
+		if  (msg.m.signal & TCP_SIGNAL_TIMER_FLAG) {
+			/* RTO timer event */
+			msg.m.signal ^= TCP_SIGNAL_TIMER_FLAG;
+			tcp_handle_rto_timer(tcpc, msg);
+			return;
+		}
+
+		/*  application signal */
+		tcp_handle_app_signal(tcpc, msg);
+		return;
 	}
 
 	if (msg.type != gestalt) return;
 
-	if (tcpc == NULL || tcpc->current_state == closed) {
-		TCPDEBUG_print("spurious message received without associated connection. ignoring.\n");
-		tcp_ignore_data(msg);
-		return;
-	}
 	switch (tcpc->current_state) {
 		case closed:
 		case allocated:
@@ -876,7 +923,7 @@ void handle_inbound_tcp(message_t msg) {
 	p.tcpdata = msg.m.gestalt.gestalt + p.ipheaderlen + p.tcpheaderlen;
 	p.tcpdatalen = p.packetlen - p.ipheaderlen - p.tcpheaderlen;
 
-	#ifdef TCPDEBUG
+	#if 0
 	print_tcp_header(p.tcphead);
 	#endif
 

@@ -124,10 +124,7 @@ static void init_rtl8139(int irq, int base_port) {
 }
 
 
-#if 0
 #define QEMU_8139_IRQ	11
-#endif
-#define QEMU_8139_IRQ	5
 #define QEMU_8139_IO	0xc100
 
 void dream() {

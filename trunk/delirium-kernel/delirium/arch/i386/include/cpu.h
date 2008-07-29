@@ -31,6 +31,8 @@ typedef u_int32_t volatile	Semaphore;
 
 #define _INTERRUPTS_ENABLED()	(get_eflags() & IA32_FLAG_INTERRUPT_ENABLE)
 
+#define _triple_fault()	asm volatile ("mov %cr3, %eax\n movl $0, (%eax)\n mov %eax, %cr3\n");
+
 void setup_idt();
 void addHandler(u_int16_t idt_offset, void *handler);
 void enable_interrupts();

@@ -14,7 +14,7 @@
 
 #ifdef _KTIMER_PRIVATE
 
-#define KTIMER_MAX_TIMERS	1000
+#define KTIMER_MAX_TIMERS	10000
 /* I'm not concerned about this wrapping in around 584 thousand years. */
 extern volatile u_int64_t useconds_since_boot;
 
@@ -22,7 +22,7 @@ struct ktimer {
 	struct ktimer *	next;
 	soapbox_id_t 		callback_soapbox;
 	u_int64_t		expiry; /* Next timer expiry */
-	u_int32_t		interval; /* How often to update in useconds */
+	u_int64_t		interval; /* How often to update in useconds */
 	u_int32_t		shots;	/* If this is an n-shot timer, how many shots left, otherwise 0 */
 	u_int64_t		signal;
 };
@@ -51,11 +51,11 @@ void ktimer_on_timer_tick();
  * returns non-zero on success
  * returns 0 if the timer couldn't be added
  */
-int add_ktimer(soapbox_id_t callback_soapbox, u_int32_t update_usecs, u_int32_t shots, u_int64_t signal);
+int add_ktimer(soapbox_id_t callback_soapbox, u_int64_t update_usecs, u_int32_t shots, u_int64_t signal);
 
 /* Same, but for userspace
  */
-int add_timer(soapbox_id_t callback_soapbox, u_int32_t update_usecs, u_int32_t shots, u_int64_t signal);
+int add_timer(soapbox_id_t callback_soapbox, u_int64_t update_usecs, u_int32_t shots, u_int64_t signal);
 
 u_int64_t get_usec_since_boot();
 
