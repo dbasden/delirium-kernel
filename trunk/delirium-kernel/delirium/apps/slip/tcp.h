@@ -71,7 +71,7 @@ typedef struct {
 	u_int16_t	remote_port;
 } __packme tcp_connection_t;
 
-#define  _TCP_Q_LINK_EXP	4
+#define  _TCP_Q_LINK_EXP	5
 struct _tcp_q_link {
         struct _tcp_q_link *next;
         u_int32_t first_seq; /* seq # of the first byte */
