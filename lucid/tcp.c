@@ -54,6 +54,7 @@ const char * tcp_state_string[] = {
 static tcp_state_t * alloc_new_tcp_state() {
 	tcp_state_t * tcp;
 	tcp = pool_alloc(_TCP_STATE_EXPONENT);
+	memset((char *)tcp, 0, 1 << _TCP_STATE_EXPONENT);
 	tcp->txwindowdata.head = NULL;
 	tcp->txwindowdata.tail = NULL;
 	tcp->current_state = closed;
