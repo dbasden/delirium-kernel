@@ -10,6 +10,9 @@
 #include "delibrium/serial.h"
 #include "slip.h"
 
+#define USE_TUN
+#undef	USE_SLIP
+
 #undef SLIPDEBUG
 
 #define PAGE_SIZE	4096
@@ -65,6 +68,52 @@ void datalink_listener(message_t msg) {
 		print("[slip] datalink_listener got non gestalt message\n");
 	}
 	#endif
+}
+
+extern int _TUN_read_frame(void *buf, int len);
+extern int _TUN_write_frame(void *buf, int len);
+extern int _TUN_is_data_waiting();
+
+void tun_todatalink_listener(message_t msg) {
+	if (msg.type == gestalt ) {
+
+		if (msg.m.gestalt.length > 0) {
+			int ret;
+			ret = _TUN_write_frame(msg.m.gestalt.gestalt, msg.m.gestalt.length);
+			if (ret < msg.m.gestalt.length)
+				printf("%s: warning! short write from _TUN_write_frame (only sent %u of %u bytes\n", __func__, ret, msg.m.gestalt.length);
+		}
+
+		assert (msg.m.gestalt.length <= PAGE_SIZE);
+		assert (msg.m.gestalt.length > 0);
+		freepage(msg.m.gestalt.gestalt);
+	}
+	else 
+		printf("%s got non gestalt message\n", __func__);
+}
+
+void tun_interrupt_handler() {
+	size_t ret;
+	message_t msg;
+
+	if (! _TUN_is_data_waiting())
+		return;
+
+	msg.type = gestalt;
+	msg.m.gestalt.gestalt = getpage();
+
+	ret = _TUN_read_frame(msg.m.gestalt.gestalt, PAGE_SIZE);
+	if (ret <= 0) {
+		printf("%s: error on _TUN_read_frame (return val %d)\n", __func__, ret);
+		freepage(msg.m.gestalt.gestalt); return;
+	}
+		
+#if 0
+	printf("%s: read %u bytes from wire\n", __func__, ret);
+#endif
+
+	msg.m.gestalt.length = ret;
+	rant(ip_layer_soapbox, msg);
 }
 
 void serial_listener(message_t msg) {
@@ -196,11 +245,46 @@ void slip_start_interface() {
 		supplicate(default_sb, datalink_listener);
 }
 
-void slip_init(u_int16_t base_port, u_int8_t hw_int, size_t speed) {
+void slip_init(u_int16_t base_port, u_int8_t hw_int,size_t speed) {
 	serial_base = base_port;
 	init_serial(base_port, speed);
 	new_thread(slip_start_interface);
 
+}
+
+#define TUN_VIRTUAL_HWINT	9
+
+void tun_init() {
+	soapbox_id_t tun_sb;
+	soapbox_id_t default_sb;
+
+	if (! (ip_layer_soapbox = get_soapbox_from_name("/network/ip/inbound"))) {
+		print("couldn't find soapbox for /network/ip/inbound. This is bad!. Aborting.\n");
+		return;
+	}
+
+	tun_sb = get_new_soapbox("/network/ip/link/tun");
+	if (tun_sb == 0) {
+		printf("Unable to register /network/ip/link/tun! Bailing\n");
+		return;
+	}
+
+	default_sb = get_new_soapbox("/network/ip/link/default");
+	if (default_sb == 0)  {
+		printf("Unable to get default ip link soapbox! Continuing..n");
+	}
+
+	if (supplicate(tun_sb, tun_todatalink_listener) == 1)
+		printf("%s: error registering /network/ip/link/tun to datalink listener", __func__);
+
+	if (default_sb && supplicate(default_sb, tun_todatalink_listener) == 0)
+		printf("%s: error registering /network/ip/link/default to datalink listener", __func__);
+		
+	add_c_interrupt_handler(TUN_VIRTUAL_HWINT, tun_interrupt_handler);
+
+	/* Hook the tun handler */
+	extern void init_tun();
+	init_tun();
 }
 
 #include "ipv4.h"
@@ -208,6 +292,12 @@ void slip_init(u_int16_t base_port, u_int8_t hw_int, size_t speed) {
 void dream() {
 	print("Starting IPv4 driver with address 192.168.11.2\n");
 	ipv4_init( IPV4_OCTET_TO_ADDR(192,168,11,2) );
+#ifdef USE_TUN
+	print("Starting TUN driver\n");
+	tun_init();
+#endif
+#ifdef USE_SLIP
 	print("Starting SLIP driver on port 0x3f8, irq 4 at 115200\n");
 	slip_init(0x3f8, 4, 115200);
+#endif
 }

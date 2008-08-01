@@ -5,6 +5,7 @@
 
 extern void dream();
 extern int do_serial_select();
+extern int do_tun_select();
 
 
 /* Main hook */
@@ -20,6 +21,7 @@ int main() {
 	fprintf(stderr, "%s: thread refcount is %d\n",__func__,get_thread_info().refcount);
 	while (get_thread_info().refcount) {
 	     	do_serial_select();
+		do_tun_select();
 		believe();
 	}
 	fprintf(stderr, "%s: thread refcount is %d\n",__func__,get_thread_info().refcount);

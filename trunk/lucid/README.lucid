@@ -5,6 +5,8 @@ Things working:
 	- IPC (rants, soapboxes etc)
 	- Memory allocation (both getpage and kpools)
 	- serial port emulation/hooks through to a pty
+	- Hooks through to tun/tap driver (which doesn't actually exist
+	  in delirium)
 
 Things not working
 	- kherdpages
