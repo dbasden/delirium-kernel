@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
-
+#include <string.h>
 
 #include <fcntl.h>
 #include <sys/select.h>
@@ -160,18 +160,66 @@ int do_serial_select() {
 #define TUNTAP
 #ifdef TUNTAP
 
-#define TUN_DEVICE	"/tmp/socat.tun"
+#define TUN_DEVICE	"/dev/net/tun"
 
 int tun_fd = -1;
 char zeros[1500];
 
+#include <linux/if.h>
+#include <linux/if_tun.h>
+#include <sys/ioctl.h>
+#include <arpa/inet.h>
+
+struct ifreq ifr;
+
+#define TUN_HOST_IP	"192.168.11.1"
+#define TUN_LUCID_IP	"192.168.11.2"
+
 void init_tun() {
-	tun_fd = open(TUN_DEVICE, O_RDWR | O_SYNC);
+	struct sockaddr_in sina;
+	int afinsock;
+
+	tun_fd = open(TUN_DEVICE, O_RDWR);
 	if (tun_fd == -1) {
 		perror(TUN_DEVICE);
 		exit(EXIT_FAILURE);
 	}
+	ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
+	if (ioctl(tun_fd, TUNSETIFF, (void *) &ifr) < 0) {
+		perror("ioctl(" TUN_DEVICE ")");
+		close(tun_fd); exit(EXIT_FAILURE);
+	}
+	fprintf(stderr, "%s: created tun device %s\n", __func__,ifr.ifr_name);
+
+	/* configure the device */
+	afinsock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+	if (afinsock < 0) { perror("socket"); exit(EXIT_FAILURE); }
+
+	memset(&sina, 0, sizeof(struct sockaddr_in));
+	sina.sin_family = AF_INET;
+	if (inet_pton(AF_INET, TUN_HOST_IP, &(sina.sin_addr.s_addr)) <= 0) {
+		perror("inet_pton couldn't convert " TUN_HOST_IP);
+		close(tun_fd); exit(EXIT_FAILURE);
+	}
+	memcpy(&(ifr.ifr_addr), &sina, sizeof(struct sockaddr));
+	if (ioctl(afinsock, SIOCSIFADDR, &ifr) < 0) 
+		{ perror("ioctl SIOCSIFADDR: " TUN_HOST_IP); exit(EXIT_FAILURE); }
+	if (inet_pton(AF_INET, TUN_LUCID_IP, &(sina.sin_addr.s_addr)) <= 0) {
+		perror("inet_pton couldn't convert " TUN_LUCID_IP);
+		close(tun_fd); exit(EXIT_FAILURE);
+	}
+	memcpy(&(ifr.ifr_addr), &sina, sizeof(struct sockaddr));
+	if (ioctl(afinsock, SIOCSIFDSTADDR, (void *) &ifr) < 0) 
+		{ perror("ioctl SIOCSIFDSTADDR: " TUN_LUCID_IP); exit(EXIT_FAILURE); }
+	ifr.ifr_flags = IFF_UP | IFF_POINTOPOINT | IFF_NOTRAILERS | IFF_RUNNING | IFF_NOARP;
+	if (ioctl(afinsock, SIOCSIFFLAGS, (void *) &ifr) < 0) 
+		{ perror("ioctl SIOSIFFLAGS"); exit(EXIT_FAILURE); }
+
+	close(afinsock);
+	fprintf(stderr, "%s: brought up %s\n", __func__,ifr.ifr_name);
+
 }
+
 
 int _TUN_read_frame(void *buf, int buflen) {
 	if (tun_fd == -1){ perror(__func__); exit(EXIT_FAILURE); }
@@ -179,10 +227,7 @@ int _TUN_read_frame(void *buf, int buflen) {
 }
 int _TUN_write_frame(void *buf, unsigned long buflen) {
 	if (tun_fd == -1){ perror(__func__); exit(EXIT_FAILURE); }
-	int ret;
-	ret = write(tun_fd, buf, buflen);
-	if (ret) fsync(tun_fd);
-	return ret;
+	return write(tun_fd, buf, buflen);
 }
 
 int _TUN_is_data_waiting() {
